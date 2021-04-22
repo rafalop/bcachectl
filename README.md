@@ -22,11 +22,15 @@ This will produce the binary `bcachectl` in the same dir. You can place in /usr/
 ### Format and register a bcache device together with a cache device (auto attaches the cache)
 `bcachectl format -B /dev/vdb -C /dev/vdc`
 ### List all bcache devices
-`bcachectl list`
-`bcachectl -f json list`
-`bcachectl -f short list`
+```
+bcachectl list
+bcachectl -f json list
+bcachectl -f short list
+```
 ### Show detailed information about a bcache device
-`bcachectl show /dev/vdb`
-`bcachectl show bcache0`
+```
+bcachectl show /dev/vdb
+bcachectl show bcache0
+```
 ### Unregister a bcache device
-`bcachectl unregister bcache0`
+bcachectl unregister bcache0
