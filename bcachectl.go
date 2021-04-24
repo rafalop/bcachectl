@@ -7,16 +7,19 @@ import (
   "fmt"
 //  "flag"
   "os"
+  "os/user"
   "path/filepath"
   "encoding/json"
   "os/exec"
   "io/fs"
   "regexp"
+  //"github.com/spf13/cobra"
+  "bcachectl/cmd"
 )
 
-var BDEVS_DIR = `/dev/bcache/by-uuid/`
-var SYSFS_BCACHE_ROOT = `/sys/fs/bcache/`
-var SYSFS_BLOCK_ROOT = `/sys/block/`
+const BDEVS_DIR = `/dev/bcache/by-uuid/`
+const SYSFS_BCACHE_ROOT = `/sys/fs/bcache/`
+const SYSFS_BLOCK_ROOT = `/sys/block/`
 var OUTPUT_VALUES = []string{
   `cache_mode`,
   `state`,
@@ -421,28 +424,19 @@ func RunFormat(wipe bool, make_bcache_cmds []string){
   return
 }
 
+const basecmd = "bcachectl"
 var AVAILABLE_COMMANDS = []string{"list", "show", "format", "register", "unregister", "tune"}
+var HELP_TEXT = map[string]string{
+  "list": "List all bcache devices\n "+basecmd+" list [-f table|json|short]",
+  "show": "Show details about a single device\n "+basecmd+" show {device} [-f standard|json]",
+  "format": "Format device(s) for use with bcache. Same arguments as `make-bcache`\n "+basecmd+" format {-B|-C} {device1} {-B|-C} {device2} ... {-B|C} {deviceN}",
+  "register": "Register a formatted bcache device.\n "+basecmd+" register {device}",
+  "unregister": "Unregister device(s).\n "+basecmd+" unregister {device1} {device2} ... {deviceN}",
+   "default": " is not an available command. Available commands:\n"+"\nFor specific help on a command, use -h {command}",
+}
 func printHelp(command string){
   //log.Println("args:", flag.Args())
-  out := os.Args[0]+" "
-  switch command {
-      case "":
-        fmt.Println("Available commands:")
-        fmt.Println(out, AVAILABLE_COMMANDS)
-      case "list":
-        fmt.Println(out+"list [-f table|json|short]")
-      case "show":
-        fmt.Println(out+"show {device} [-f standard|json]")
-      case "format":
-        fmt.Println(out+"format {-B|-C} {device1} {-B|-C} {device2} ... {-B|C} {deviceN}")
-      case "register":
-        fmt.Println(out+"register {device}")
-      case "unregister":
-        fmt.Println(out+"unregister {device1} {device2} ... {deviceN}")
-      default:
-        fmt.Println(command, "is not an available command. Available commands:")
-        fmt.Println(out, AVAILABLE_COMMANDS)
-  }
+  fmt.Println(HELP_TEXT[command])
   return
 }
 func (b *bcache_devs) RunTune(device string, tunable string) {
@@ -518,7 +512,6 @@ type flags struct {
   Wipe bool
 }
 
-var allflags = flags{Format: "table", Wipe: false}
 
 func checkFormat(format string) bool {
   if format == "json" ||
@@ -530,7 +523,7 @@ func checkFormat(format string) bool {
   return false
 }
 
-func parseArgs(all_args []string) (cmds []string, help bool) {
+func parseArgs(all_args []string, allflags *flags) (cmds []string, help bool) {
   help = false
   for i:=0 ; i< len(all_args) ; i++ {
   //already_formatted, _ := regexp.MatchString("Already a bcache device", out)
@@ -555,31 +548,56 @@ func parseArgs(all_args []string) (cmds []string, help bool) {
   return
 }
 
+func isAdmin(user *user.User) bool{
+  if user.Uid != "0" {
+    fmt.Println("Modifying bcache devices requires root privileges.")
+    return false
+  }
+  return true
+}
+
 func main () {
-  all := allDevs()
+  //user, err := user.Current()
+  //if err != nil {
+  //  fmt.Println(err)
+  //  os.Exit(1)
+  //}
 
-  cmds, help := parseArgs(os.Args)
-  command := cmds[1]
-  if help || command == ""{
-    printHelp(command)
-    os.Exit(0)
-  }
-  f := allflags
+  cmd.Execute()
+  cmd.init()
+//  var allflags = flags{Format: "table", Wipe: false}
+//  all := allDevs()
+//
+//  cmds, help := parseArgs(os.Args, &allflags)
+//  command := cmds[1]
+//  if help || command == ""{
+//    printHelp(command)
+//    os.Exit(0)
+//  }
+//  f := allflags
 
-  switch command {
-  case "list":
-    all.RunList(f.Format)
-  case "show":
-    all.RunShow(f.Format, cmds[2])
-  case "format":
-    RunFormat(f.Wipe, cmds[2:])
-  case "tune":
-    all.RunTune(cmds[2], cmds[3])
-  case "unregister":
-    all.RunUnregister(cmds[2:])
-  case "register":
-    RunRegister(cmds[2])
-  default:
-    printHelp("")
-  }
+//  switch command {
+//  case "list":
+//    all.RunList(f.Format)
+//  case "show":
+//    all.RunShow(f.Format, cmds[2])
+//  case "format":
+//    if isAdmin(user) {
+//      RunFormat(f.Wipe, cmds[2:])
+//    }
+//  case "tune":
+//    if isAdmin(user) {
+//      all.RunTune(cmds[2], cmds[3])
+//    }
+//  case "unregister":
+//    if isAdmin(user) {
+//      all.RunUnregister(cmds[2:])
+//    }
+//  case "register":
+//    if isAdmin(user) {
+//      RunRegister(cmds[2])
+//    }
+//  default:
+//    printHelp("")
+//  }
 }
