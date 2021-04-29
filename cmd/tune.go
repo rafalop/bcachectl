@@ -6,13 +6,13 @@ import (
   "strings"
   "os"
   "io/ioutil"
+  "errors"
 )
 
 var tuneCmd = &cobra.Command{
   Use:   "tune {device1} {tunable:value}",
-  Short: "Change tunable for a bcache device. Works by writing to sysfs entries, value might be string or integer",
-  //Long: "Allowed tunables:\n"+(strings.Join(ALLOWED_TUNABLES, "\n")),
-  Long: "Change one of the allowed tunables:\n"+ALLOWED_TUNABLES_DESCRIPTIONS,
+  Short: "Change tunable for a bcache device",
+  Long: "Tune bcache, works by writing to sysfs entries. Change one of the allowed tunables:\n"+ALLOWED_TUNABLES_DESCRIPTIONS,
   Args: cobra.MinimumNArgs(2),
   Run: func(cmd *cobra.Command, args []string) {
     if IsAdmin {
@@ -37,29 +37,31 @@ func (b *bcache_devs) RunTune(device string, tunable string) {
     fmt.Println("Tunable does not appear to be specified properly, must be formatted as tunable:value, eg. cache_mode:writethrough\n")
     return
   } else {
-      fmt.Println()
-      fmt.Println("Changing tunable for", device, "("+y.ShortName+")", tunable, "\n")
-      y.ChangeTunable(tunable_a[0], tunable_a[1])
+      err := y.ChangeTunable(tunable_a[0], tunable_a[1])
+      if err != nil {
+        fmt.Println("Couldn't change tunable:", err)
+        return
+      }
+      fmt.Println("Changed tunable for", device, "("+y.ShortName+")", tunable, "\n")
   }
 }
 
-func (b *bcache_bdev) ChangeTunable(tunable string, val string) {
+func (b *bcache_bdev) ChangeTunable(tunable string, val string) error {
   write_path := SYSFS_BLOCK_ROOT+b.ShortName+`/bcache/`+tunable
   if _, err := os.Stat(write_path); err != nil {
     fmt.Println("Tunable does not appear to exist: ", tunable)
-    fmt.Println("Tunable sysfs path attempted: ", write_path)
-    return
+    return errors.New("Tunable path does not exist: "+write_path)
   }
   for _,t := range ALLOWED_TUNABLES {
     if tunable == t {
       ioutil.WriteFile(write_path, []byte(val), 0)
       b.makeMap(OUTPUT_VALUES)
       b.PrintFullInfo("standard")
-      return
+      return nil
     }
   }
   fmt.Println("Tunable is not in allowed tunable list. Allowed tunables are: ")
   fmt.Println(ALLOWED_TUNABLES)
   fmt.Println(ALLOWED_TUNABLES_DESCRIPTIONS)
-  return
+  return errors.New("Not allowed.")
 }

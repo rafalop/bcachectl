@@ -8,7 +8,7 @@ import (
 
 var attachCmd = &cobra.Command{
   Use:   "attach {cache device} {backing device}",
-  Short: "Attach an already formatted bcache cache device to a backing device.",
+  Short: "Attach an already formatted bcache cache device to a backing device",
   Long: "Attaches a device that has already been formatted as a cache device (exists in sysfs and has uuid) to an already formatted backing device.",
   Args: cobra.ExactArgs(2),
   Run: func(cmd *cobra.Command, args []string) {
@@ -32,12 +32,10 @@ func (b *bcache_devs) RunAttach(cdev string, bdev string) {
   }
   write_path := SYSFS_BLOCK_ROOT+y.ShortName+`/bcache/attach`
   ioutil.WriteFile(write_path, []byte(z.UUID), 0)
-  allDevs()
-  _, y = b.IsBDevice(bdev)
+  y.FindCUUID()
   if y.CUUID != z.UUID {
     fmt.Println("Cache device could not be attached. Is there already a cache set associated with the device?\n")
     return
   }
-  fmt.Println("Cache device", cdev, "was attached as cache for", bdev, "\n")
-  y.PrintFullInfo("standard")
+  fmt.Println("Cache device", cdev, "was attached as cache for", bdev)
 }

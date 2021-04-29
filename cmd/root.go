@@ -45,17 +45,17 @@ var ALLOWED_TUNABLES = []string{
   `writeback_percent`,
 }
 var ALLOWED_TUNABLES_DESCRIPTIONS =`
-sequential_cutoff:  threshold for a sequential IO to bypass the cache, set using byte value, default 4.0M (4194304)"
-readahead:  size of readahead that should be performed, set using byte value, default 0
-writeback_percent:  bcache tries to keep this amount of percentage of dirty data for writeback mode, a setting of 0 would flush the cache
-cache_mode:  cache mode to use, possible values writethrough, writeback, writearound, none`
+sequential_cutoff:<INT>  threshold for a sequential IO to bypass the cache, set using byte value, default 4.0M (4194304)"
+readahead:<INT>  size of readahead that should be performed, set using byte value, default 0
+writeback_percent:<INT> bcache tries to keep this amount of percentage of dirty data for writeback mode, a setting of 0 would flush the cache
+cache_mode:<STR> cache mode to use, possible values writethrough, writeback, writearound, none`
 
 // A bcache (backing) device
 type bcache_bdev struct {
   BcacheDev string        `json:"BcacheDev"`
   ShortName string        `json:"ShortName"`
-  BackingDevs []string    `json:"BackingDevs"`
-  CacheDevs []string      `json:"CacheDevs"`
+  BackingDev string      `json:"BackingDev"`
+  CacheDev string        `json:"CacheDev"`
   BUUID string            `json:"BcacheDevUUID"`
   CUUID string            `json:"CacheSetUUID"`
   Slaves []string         `json:"Slaves"`
@@ -146,10 +146,10 @@ func (b *bcache_bdev) FindBackingAndCacheDevs() {
       entry_s := entry.Name()
       dev_id := readVal(search_path+slave+"/dev")
       if entry_s == "dev" {
-        b.BackingDevs = append(b.BackingDevs, getSysDevFromID(dev_id))
+        b.BackingDev = getSysDevFromID(dev_id)
         continue
       } else if entry_s == "set" {
-        b.CacheDevs = append(b.CacheDevs, getSysDevFromID(dev_id))
+        b.CacheDev = getSysDevFromID(dev_id)
         continue
       }
     }
@@ -170,15 +170,17 @@ func (b *bcache_bdev) FindCUUID() {
     b.CUUID = cset_path_a[len(cset_path_a)-1]
     //If it's empty, we try to get from superblock instead
     if b.CUUID == "" {
-      b.CUUID = "(none attached)"
-      b.CacheDevs = append(b.CacheDevs, "(none attached)")
-      super := GetSuperBlock(b.BackingDevs[0])
+      super := GetSuperBlock(b.BackingDev)
       re := regexp.MustCompile(`cset\.uuid[\ |\t]*([a-zA-Z0-9\-]*)`)
       found := re.FindStringSubmatch(super)
-      //if found != nil {
-      //  fmt.Println("FOUND:", found)
-      //}
-      b.CUUID = found[1]+" (detached)"
+      // None found
+      if found != nil || found[1] == "00000000-0000-0000-0000-000000000000" {
+        b.CUUID = "(none attached)"
+        b.CacheDev = "(none attached)"
+        return
+      } else {
+        b.CUUID = found[1]
+      }
     }
 }
 
@@ -209,7 +211,7 @@ func (b *bcache_devs) FindCDevs() (err error) {
 }
 
 //Find all bcache devices with settings and metadata
-func (b *bcache_devs) FindBDevs() (err error){  
+func (b *bcache_devs) FindBDevs() (err error){
   devs, err := os.ReadDir(BDEVS_DIR)
   if err != nil {
     return
@@ -245,12 +247,11 @@ func (b *bcache_devs) FindBDevs() (err error){
   return
 }
 
-
 func (b *bcache_bdev)makeMap(vals []string) {
   var m = make(map[string]interface{})
   m["BcacheDev"] = b.BcacheDev
-  m["BackingDev"] = strings.Join(b.BackingDevs, " ")
-  m["CacheDev"] = strings.Join(b.CacheDevs, " ")
+  m["BackingDev"] = b.BackingDev
+  m["CacheDev"] = b.CacheDev
   for _, val := range vals {
     m[val] = b.Val(val)
   }
@@ -346,7 +347,7 @@ func (b *bcache_devs) IsBDevice(dev string) (ret bool, ret2 bcache_bdev){
   for _, bdev := range b.bdevs {
     if bdev.ShortName == dev ||
       bdev.BcacheDev == dev ||
-      bdev.BackingDevs[0] == dev {
+      bdev.BackingDev == dev {
       ret = true
       ret2 = bdev
     }
@@ -406,11 +407,11 @@ func Init() {
   rootCmd.AddCommand(unregisterCmd)
   rootCmd.AddCommand(showCmd)
   showCmd.Flags().StringVarP(&Format, "format", "f", "standard", "Output format [standard|json]")
-  rootCmd.AddCommand(createCmd)
-  createCmd.Flags().BoolVarP(&Wipe, "wipe-bcache", "", false, "force reformat if device is already bcache formatted")
-  createCmd.Flags().StringVarP(&NewBDev, "backing-device", "B", "", "Backing dev to create, if specified with -C, will auto attach the cache device")
-  createCmd.Flags().StringVarP(&NewCDev, "cache-device", "C", "", "Cache dev to create, if specified with -B, will auto attach the cache device")
-  createCmd.Flags().BoolVarP(&WriteBack, "writeback", "", false, "Cache dev to create, if specified with -B, will auto attach the cache device")
+  rootCmd.AddCommand(addCmd)
+  addCmd.Flags().BoolVarP(&Wipe, "wipe-bcache", "", false, "force reformat if device is already bcache formatted")
+  addCmd.Flags().StringVarP(&NewBDev, "backing-device", "B", "", "Backing dev to create, if specified with -C, will auto attach the cache device")
+  addCmd.Flags().StringVarP(&NewCDev, "cache-device", "C", "", "Cache dev to create, if specified with -B, will auto attach the cache device")
+  addCmd.Flags().BoolVarP(&WriteBack, "writeback", "", false, "Cache dev to create, if specified with -B, will auto attach the cache device")
   rootCmd.AddCommand(tuneCmd)
   rootCmd.AddCommand(attachCmd)
   rootCmd.AddCommand(superCmd)
