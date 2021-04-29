@@ -12,25 +12,38 @@ go mod init bcachectl
 go mod tidy
 go build bcachectl.go
 ```
-This will produce the binary `bcachectl` in the same dir. You can place in /usr/local/bin or other path of your choice.
+This will produce the binary `bcachectl` in the same dir. You can place in /usr/local/bin or other exec path of your choice.
 
 ## Usage examples
 ### Format and register a bcache backing device
-`bcachectl format -B /dev/vdb`
+`bcachectl add -B /dev/vdb`
 ### Format and register a bcache cache device
-`bcachectl format -C /dev/vdc`
+`bcachectl add -C /dev/vdc`
 ### Format and register a bcache device together with a cache device (auto attaches the cache)
-`bcachectl format -B /dev/vdb -C /dev/vdc`
+`bcachectl add -B /dev/vdb -C /dev/vdc`
 ### List all bcache devices
 ```
 bcachectl list
-bcachectl -f json list
-bcachectl -f short list
+bcachectl list -f json
+bcachectl list -f short
 ```
 ### Show detailed information about a bcache device
 ```
 bcachectl show /dev/vdb
 bcachectl show bcache0
 ```
-### Unregister a bcache device
-bcachectl unregister bcache0
+
+### Attach an already formatted cache dev to an already formatted backing dev
+```
+bcachectl attach /dev/ssd /dev/vda
+```
+### Detach a cache device (/dev/ssd) from a backing device (/dev/vda)
+```
+bcachectl detach /dev/sdd /dev/vda
+```
+### Change bcache tunable of a bcache device
+```
+bcachectl tune bcache0 cache_mode:writeback
+bcachectl tune /dev/vdb sequential_cutoff:$((1024*1024))
+```
+
