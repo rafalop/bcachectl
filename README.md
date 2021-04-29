@@ -16,11 +16,17 @@ This will produce the binary `bcachectl` in the same dir. You can place in /usr/
 
 ## Usage examples
 ### Format and register a bcache backing device
-`bcachectl add -B /dev/vdb`
+```
+bcachectl add -B /dev/vdb
+```
 ### Format and register a bcache cache device
-`bcachectl add -C /dev/vdc`
+```
+bcachectl add -C /dev/vdc
+```
 ### Format and register a bcache device together with a cache device (auto attaches the cache)
-`bcachectl add -B /dev/vdb -C /dev/vdc`
+```
+bcachectl add -B /dev/vdb -C /dev/vdc
+```
 ### List all bcache devices
 ```
 bcachectl list
