@@ -1,5 +1,5 @@
 # bcachectl
-This tool makes use of the sysfs and paths that are installed by bcache tools when you format/register devices to make it much simpler to view, configure and modify bcache setups.
+This tool makes use of the sysfs and paths that are created by bcache tools when you format/register devices to make it much simpler to view, configure and modify bcache setups.
 
 ## Requirements
 You should have a kernel that supports bcache (eg. Ubuntu 18.04+), and `bcache-tools` package installed.
