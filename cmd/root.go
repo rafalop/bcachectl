@@ -43,6 +43,7 @@ var ALLOWED_TUNABLES = []string{
   `readahead`,
   `cache_mode`,
   `writeback_percent`,
+  `writeback_delay`,
 }
 var ALLOWED_TUNABLES_DESCRIPTIONS =`
 sequential_cutoff:<INT>  threshold for a sequential IO to bypass the cache, set using byte value, default 4.0M (4194304)"
@@ -392,6 +393,7 @@ var Wipe bool
 var NewBDev string
 var NewCDev string
 var WriteBack bool
+var AllDevs bool
 
 var rootCmd = &cobra.Command{
   Use:   "bcachectl",
@@ -413,6 +415,8 @@ func Init() {
   addCmd.Flags().StringVarP(&NewCDev, "cache-device", "C", "", "Cache dev to create, if specified with -B, will auto attach the cache device")
   addCmd.Flags().BoolVarP(&WriteBack, "writeback", "", false, "Cache dev to create, if specified with -B, will auto attach the cache device")
   rootCmd.AddCommand(tuneCmd)
+  rootCmd.AddCommand(flushCmd)
+  flushCmd.Flags().BoolVarP(&AllDevs, "all", "a", false, "Flush all bcache devices")
   rootCmd.AddCommand(attachCmd)
   rootCmd.AddCommand(superCmd)
   rootCmd.AddCommand(detachCmd)

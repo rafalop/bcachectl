@@ -44,6 +44,7 @@ func (b *bcache_devs) RunTune(device string, tunable string) {
       }
       fmt.Println("Changed tunable for", device, "("+y.ShortName+")", tunable, "\n")
   }
+  y.PrintFullInfo("standard")
 }
 
 func (b *bcache_bdev) ChangeTunable(tunable string, val string) error {
@@ -56,7 +57,6 @@ func (b *bcache_bdev) ChangeTunable(tunable string, val string) error {
     if tunable == t {
       ioutil.WriteFile(write_path, []byte(val), 0)
       b.makeMap(OUTPUT_VALUES)
-      b.PrintFullInfo("standard")
       return nil
     }
   }
