@@ -393,7 +393,7 @@ var Wipe bool
 var NewBDev string
 var NewCDev string
 var WriteBack bool
-var AllDevs bool
+var ApplyToAll bool
 
 var rootCmd = &cobra.Command{
   Use:   "bcachectl",
@@ -415,8 +415,9 @@ func Init() {
   addCmd.Flags().StringVarP(&NewCDev, "cache-device", "C", "", "Cache dev to create, if specified with -B, will auto attach the cache device")
   addCmd.Flags().BoolVarP(&WriteBack, "writeback", "", false, "Cache dev to create, if specified with -B, will auto attach the cache device")
   rootCmd.AddCommand(tuneCmd)
+  tuneCmd.Flags().BoolVarP(&ApplyToAll, "all", "a", false, "Apply tunable to all bcache devices")
   rootCmd.AddCommand(flushCmd)
-  flushCmd.Flags().BoolVarP(&AllDevs, "all", "a", false, "Flush all bcache devices")
+  flushCmd.Flags().BoolVarP(&ApplyToAll, "all", "a", false, "Flush all bcache devices")
   rootCmd.AddCommand(attachCmd)
   rootCmd.AddCommand(superCmd)
   rootCmd.AddCommand(detachCmd)
