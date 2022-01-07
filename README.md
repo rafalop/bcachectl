@@ -53,3 +53,6 @@ bcachectl tune bcache0 cache_mode:writeback
 bcachectl tune /dev/vdb sequential_cutoff:$((1024*1024))
 ```
 
+## bcache notes/quirks
+- if a device is registered and mounted, and your unregister, it will still show the cache dev as registered until you unmount the filesystem
+
