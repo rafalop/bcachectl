@@ -10,8 +10,8 @@ import (
 )
 
 var tuneCmd = &cobra.Command{
-  Use:   "tune {device1} {tunable:value}",
-  Short: "Change tunable for a bcache device",
+  Use:   "tune {bcacheN} {tunable:value}",
+  Short: "Change tunable for a bcache device or all devices",
   Long: "Tune bcache, works by writing to sysfs entries. Change one of the allowed tunables:\n"+ALLOWED_TUNABLES_DESCRIPTIONS,
   Args: cobra.MinimumNArgs(2),
   Run: func(cmd *cobra.Command, args []string) {

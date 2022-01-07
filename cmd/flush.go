@@ -8,7 +8,7 @@ import (
 )
 
 var flushCmd = &cobra.Command{
-  Use:   "flush {device1}",
+  Use:   "flush {bcacheN}",
   Short: "Flush devices dirty data from cache",
   Long: "Flush the dirty data for one or all bcache devices. Only used when cache is in writeback mode.",
   Args: cobra.MinimumNArgs(0),
