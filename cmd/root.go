@@ -38,6 +38,7 @@ var EXTENDED_VALUES = []string{
   `sequential_cutoff`,
   `readahead_cache_policy`,
   `writeback_percent`,
+  `dirty_data`,
 }
 var ALLOWED_TUNABLES = []string{
   `sequential_cutoff`,
@@ -58,7 +59,7 @@ type bcache_bdev struct {
   ShortName string        `json:"ShortName"`
   BackingDev string      `json:"BackingDev"`
   CacheDev string        `json:"CacheDev"`
-  BUUID string            `json:"BcacheDevUUID"`
+  //BUUID string            `json:"BcacheDevUUID"`
   CUUID string            `json:"CacheSetUUID"`
   Slaves []string         `json:"Slaves"`
   // Map will contain extended info about bcache device, eg. stats etc
@@ -266,7 +267,7 @@ func (b *bcache_devs) FindBDevs() (err error){
       b.FindBackingAndCacheDevs()
       b.FindCUUID()
       b.BcacheDev = bcache_device
-      b.BUUID = entry.Name()
+      //b.BUUID = entry.Name()
       //b.CacheMode = b.Val(`cache_mode`)
       b.makeMap(OUTPUT_VALUES)
       c<-b
@@ -317,7 +318,7 @@ func (b *bcache_bdev) PrintFullInfo(format string) {
       ExtendedInfo map[string]interface{}
     }{
       ShortName: b.ShortName,
-      BUUID: b.BUUID,
+      //BUUID: b.BUUID,
       CUUID: b.CUUID,
       ExtendedInfo: b.Map,
     }
@@ -325,7 +326,7 @@ func (b *bcache_bdev) PrintFullInfo(format string) {
     fmt.Println(string(json_out))
   } else {
     fmt.Printf("%-30s%s\n", "ShortName:" , b.ShortName)
-    fmt.Printf("%-30s%s\n", "BCache Dev UUID:" , b.BUUID)
+    //fmt.Printf("%-30s%s\n", "BCache Dev UUID:" , b.BUUID)
     fmt.Printf("%-30s%s\n", "Cache Set UUID:" , b.CUUID)
     for k, v := range b.Map {
       fmt.Printf("%-30s%s\n", k+`:`, v)
