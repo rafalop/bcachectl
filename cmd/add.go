@@ -29,6 +29,10 @@ func RunCreate(newbdev string, newcdev string){
     bcache_cmd = bcache_cmd+` -B `+newbdev
   }
   if Wipe {
+    out,_ := RunSystemCommand(`/sbin/wipefs -a `+newbdev)
+    fmt.Println(out)
+    out,_ = RunSystemCommand(`/sbin/wipefs -a `+newcdev)
+    fmt.Println(out)
     bcache_cmd = bcache_cmd+" --wipe-bcache"
   }
   if WriteBack {
@@ -36,10 +40,18 @@ func RunCreate(newbdev string, newcdev string){
   }
   out, err := RunSystemCommand(bcache_cmd)
   fmt.Println(out)
+  // we also have to register the cache dev
+  if err == nil {
+    RunRegister([]string{newcdev})
+  }
   already_formatted, _ := regexp.MatchString("Already a bcache device", out)
+  busy, _ := regexp.MatchString("Device or resource busy", out)
+  if busy {
+    fmt.Println("Device is busy - is it already registered bcache dev or mounted?")
+  }
   if already_formatted {
     fmt.Println("This format attempt probably registered the existing bcache device and it will show up using:")
-    fmt.Printf("  bcachectl list\n\nIf you really want to format it, unregister it and then use the --wipe-bcache flag:\n  bcachectl unregister {device}\n  bcachectl --wipe-bcache format -(B|C) {device}\n\n") 
+    fmt.Printf("  bcachectl list\n\nIf you REALLY want to format it, unregister it and then use the --wipe-bcache flag (will erase any superblocks and filesystems!):\n  bcachectl unregister {device}\n  bcachectl add -(B|C) {device} --wipe-bcache\n\n")
   }
   if err != nil {
     os.Exit(1)
