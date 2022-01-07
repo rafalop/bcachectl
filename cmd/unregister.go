@@ -8,7 +8,7 @@ import (
 
 //var U *user.User
 var unregisterCmd = &cobra.Command{
-  Use:   "unregister {device1} {device2} ... {deviceN}",
+  Use:   "unregister {bcacheX} {bcacheY} ... {deviceN}",
   Short: "unregister formatted bcache device(s)",
   Args: cobra.MinimumNArgs(1),
   Run: func(cmd *cobra.Command, args []string) {

@@ -33,13 +33,11 @@ func RunRegister(devices []string){
       }
       if done {
         fmt.Println(device, "was registered.")
-        all.printTable()
       } else {
         fmt.Println("Couldn't register "+device+". If it is a backing device with cache device attached, you should try to register the cache device instead.")
       }
     }
   }
   fmt.Println()
-  all.printTable()
   return
 }

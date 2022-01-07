@@ -4,18 +4,27 @@ import (
   "github.com/spf13/cobra"
   "fmt"
   "encoding/json"
+  "strings"
 )
 
 var listCmd = &cobra.Command{
   Use:   "list",
   Short: "list all bcache devices",
+  Long: `list all bcache devices along with some info about them. 
+
+possible columns to output with -e:
+sequential_cutoff,dirty_data,cache_hit_ratio,cache_hits,cache_misses,writeback_percent`,
   Run: func(cmd *cobra.Command, args []string) {
     all := allDevs()
-    all.RunList(Format)
+    all.RunList(Format, Extra)
   },
 }
 
-func (b *bcache_devs) RunList(format string) {
+func (b *bcache_devs) RunList(format string, extra string) {
+  extra_vals := strings.Split(extra, `,`)
+  for _,j := range b.bdevs {
+    j.extendMap(extra_vals)
+  }
   if format == "json" {
     out := `{`
     jsonb_out, _ := json.Marshal(b.bdevs)
@@ -28,7 +37,7 @@ func (b *bcache_devs) RunList(format string) {
     }
     fmt.Printf("\n")
   } else {
-      b.printTable()
+      b.printTable(extra_vals)
   }
   return
 }

@@ -16,7 +16,8 @@ import (
   //"github.com/spf13/cobra"
 )
 
-const BDEVS_DIR = `/dev/bcache/by-uuid/`
+// This seems to be flaky
+//const BDEVS_DIR = `/dev/bcache/by-uuid/`
 const SYSFS_BCACHE_ROOT = `/sys/fs/bcache/`
 const SYSFS_BLOCK_ROOT = `/sys/block/`
 
@@ -80,8 +81,14 @@ type bcache_devs struct {
 
 func allDevs() bcache_devs {
   all := new(bcache_devs)
-  all.FindBDevs()
-  all.FindCDevs()
+  if err := all.FindBDevs(); err != nil {
+    fmt.Println("Error:", err)
+    os.Exit(1)
+  }
+  if err := all.FindCDevs(); err != nil {
+    fmt.Println("Error:", err)
+    os.Exit(1)
+  }
   return *all
 }
 
@@ -141,7 +148,13 @@ func getSysDevFromID(dev_id string) (path string){
 //Find backing and cache devs for a bcache set
 func (b *bcache_bdev) FindBackingAndCacheDevs() {
   search_path := SYSFS_BLOCK_ROOT+b.ShortName+`/slaves/`
+  //fmt.Println(b.Slaves)
   for _, slave := range b.Slaves {
+    if _, registerCheck := os.Stat(search_path+slave+`/bcache`); os.IsNotExist(registerCheck) {
+      b.BackingDev = "UNREGISTERED"
+      b.CacheDev = "UNREGISTERED"
+      break
+    }
     dents, _ := os.ReadDir(search_path+slave+`/bcache`)
     for _, entry := range dents {
       entry_s := entry.Name()
@@ -158,7 +171,7 @@ func (b *bcache_bdev) FindBackingAndCacheDevs() {
 }
 
 func GetSuperBlock(dev string) string {
-  cmd := `/usr/sbin/bcache-super-show `
+  cmd := `/sbin/bcache-super-show `
   cmd = cmd+dev
   out, _ := RunSystemCommand(cmd)
   return out
@@ -175,7 +188,7 @@ func (b *bcache_bdev) FindCUUID() {
       re := regexp.MustCompile(`cset\.uuid[\ |\t]*([a-zA-Z0-9\-]*)`)
       found := re.FindStringSubmatch(super)
       // None found
-      if found != nil || found[1] == "00000000-0000-0000-0000-000000000000" {
+      if len(found) == 0 || found != nil || found[1] == "00000000-0000-0000-0000-000000000000" {
         b.CUUID = "(none attached)"
         b.CacheDev = "(none attached)"
         return
@@ -213,15 +226,32 @@ func (b *bcache_devs) FindCDevs() (err error) {
 
 //Find all bcache devices with settings and metadata
 func (b *bcache_devs) FindBDevs() (err error){
-  devs, err := os.ReadDir(BDEVS_DIR)
-  if err != nil {
+  var basedir string
+  var devs []os.DirEntry
+  // This seems to be flaky for some reason, udevadm? we just use /dev/bcacheX
+  //if _, basedirCheck := os.Stat(BDEVS_DIR); ! os.IsNotExist(basedirCheck) {
+  //  fmt.Println("Found BDEVS_DIR")
+  //  devs, err = os.ReadDir(BDEVS_DIR)
+  //  basedir = BDEVS_DIR
+  //} else {
+  basedir = `/dev/`
+  dents, err2 := os.ReadDir(basedir)
+  if err2 != nil {
+    err = err2
     return
   }
+  for _,x := range dents {
+    matched, _ := regexp.Match(`bcache[0-9]+`, []byte(x.Name()))
+    if matched {
+      devs = append(devs, x)
+    }
+  }
+  //}
   c := make(chan bcache_bdev, len(devs))
   for _, j := range devs {
-    go func(entry os.DirEntry) {
+    go func(entry os.DirEntry, basedir string) {
       var b bcache_bdev
-      uuid_path := BDEVS_DIR+entry.Name()
+      uuid_path := basedir+entry.Name()
       bcache_device, err2 := filepath.EvalSymlinks(uuid_path)
       if err2 != nil {
         err = err2
@@ -240,7 +270,7 @@ func (b *bcache_devs) FindBDevs() (err error){
       //b.CacheMode = b.Val(`cache_mode`)
       b.makeMap(OUTPUT_VALUES)
       c<-b
-    }(j)
+    }(j, basedir)
   }
   for range devs {
     b.bdevs = append(b.bdevs, <-c)
@@ -304,12 +334,12 @@ func (b *bcache_bdev) PrintFullInfo(format string) {
   return
 }
 
-func (b *bcache_devs) printTable() {
-  fmt.Println("Registered bache (backing) devices:")
+func (b *bcache_devs) printTable(extra_vals []string) {
+  fmt.Println("bcache (backing) devices:")
   if len(b.bdevs) > 0 {
-    columns := []string{"BcacheDev", "BackingDev", "CacheDev", "cache_mode"}
-    var extra_vals []string
-    extra_vals = []string{"state", "dirty_data"}
+    columns := []string{"BcacheDev", "BackingDev", "CacheDev", "cache_mode", "state"}
+    //var extra_vals []string
+    //extra_vals = []string{"state", "dirty_data", "sequential_cutoff"}
     for _, val := range extra_vals {
       columns = append(columns, val)
     }
@@ -320,7 +350,7 @@ func (b *bcache_devs) printTable() {
     //fmt.Printf("%-15s %-15s %-15s\n", "bcache_dev", "backing_dev", "cache_dev")
     for _,bdev := range b.bdevs {
       for _,j := range columns {
-        bdev.extendMap(extra_vals)
+//        bdev.extendMap(extra_vals)
         //fmt.Println(bdev.Map[j])
         PrintColumn(bdev.Map[j].(string))
       }
@@ -389,6 +419,7 @@ func CheckAdmin(user *user.User) bool{
 var U *user.User
 var IsAdmin bool = false
 var Format string //Output format
+var Extra string //Output extra values
 var Wipe bool
 var NewBDev string
 var NewCDev string
@@ -405,6 +436,7 @@ func Init() {
   IsAdmin = CheckAdmin(U)
   rootCmd.AddCommand(listCmd)
   listCmd.Flags().StringVarP(&Format, "format", "f", "table", "Output format [table|json|short]")
+  listCmd.Flags().StringVarP(&Extra, "extra-vals", "e", "", "Extra settings to print (comma delim)")
   rootCmd.AddCommand(registerCmd)
   rootCmd.AddCommand(unregisterCmd)
   rootCmd.AddCommand(showCmd)
@@ -413,9 +445,8 @@ func Init() {
   addCmd.Flags().BoolVarP(&Wipe, "wipe-bcache", "", false, "force reformat if device is already bcache formatted")
   addCmd.Flags().StringVarP(&NewBDev, "backing-device", "B", "", "Backing dev to create, if specified with -C, will auto attach the cache device")
   addCmd.Flags().StringVarP(&NewCDev, "cache-device", "C", "", "Cache dev to create, if specified with -B, will auto attach the cache device")
-  addCmd.Flags().BoolVarP(&WriteBack, "writeback", "", false, "Cache dev to create, if specified with -B, will auto attach the cache device")
+  addCmd.Flags().BoolVarP(&WriteBack, "writeback", "", false, "Use writeback caching (when auto attach specifying -B and -C)")
   rootCmd.AddCommand(tuneCmd)
-  tuneCmd.Flags().BoolVarP(&ApplyToAll, "all", "a", false, "Apply tunable to all bcache devices")
   rootCmd.AddCommand(flushCmd)
   flushCmd.Flags().BoolVarP(&ApplyToAll, "all", "a", false, "Flush all bcache devices")
   rootCmd.AddCommand(attachCmd)
