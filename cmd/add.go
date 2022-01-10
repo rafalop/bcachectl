@@ -51,7 +51,7 @@ func RunCreate(newbdev string, newcdev string){
   }
   if already_formatted {
     fmt.Println("This format attempt probably registered the existing bcache device and it will show up using:")
-    fmt.Printf("  bcachectl list\n\nIf you REALLY want to format it, unregister it and then use the --wipe-bcache flag (will erase any superblocks and filesystems!):\n  bcachectl unregister {device}\n  bcachectl add -(B|C) {device} --wipe-bcache\n\n")
+    fmt.Printf("  bcachectl list\n\nIf you REALLY want to format it, unregister it and then use the --wipe-bcache flag (will erase any superblocks and filesystems!):\n  bcachectl unregister {device}\n  bcachectl add -(B|C) {device} --wipe-bcache\n")
   }
   if err != nil {
     os.Exit(1)

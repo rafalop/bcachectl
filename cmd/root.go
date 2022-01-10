@@ -462,4 +462,5 @@ func Execute() {
     return
   }
   rootCmd.Execute()
+  fmt.Println()
 }

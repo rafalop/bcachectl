@@ -7,19 +7,71 @@ import (
   "os"
   "io/ioutil"
   "errors"
+  "gopkg.in/yaml.v2"
 )
 
 var tuneCmd = &cobra.Command{
-  Use:   "tune {bcacheN} {tunable:value}",
-  Short: "Change tunable for a bcache device or all devices",
-  Long: "Tune bcache, works by writing to sysfs entries. Change one of the allowed tunables:\n"+ALLOWED_TUNABLES_DESCRIPTIONS,
+  Use: "tune [{bcacheN} {tunable:value}] | [from-file /some/config/file]",
+  Short: "Change tunable for a bcache device or tune devices from a config file",
+  Long: "Tune bcache by writing to sysfs. Using 'from-file /file/name' will read tunables from a config file and tune each specified device or 'all' devices. Allowed tunables are:\n"+ALLOWED_TUNABLES_DESCRIPTIONS,
   Args: cobra.MinimumNArgs(2),
   Run: func(cmd *cobra.Command, args []string) {
     if IsAdmin {
       all := allDevs()
-      all.RunTune(args[0], args[1])
+      if args[0] == "from-file" {
+        all.TuneFromFile(args[1])
+      } else {
+        all.RunTune(args[0], args[1])
+      }
     }
   },
+}
+
+//Example config, use cache set uuid to override 'all' or default config
+//all:
+//  sequential_cutoff: 16384
+//cf85e0c3-cb0a-4c99-a003-b629adb0be0b:
+//  sequential_cutoff: 8192
+//577e54bb-23d3-4ef3-b5f4-749d3124ed0f:
+//  sequential_cutoff: 4096
+//  writeback_percent: 20
+
+type driveConfig map[string]string
+
+// Defaults
+var Config map[string]driveConfig = map[string]driveConfig{
+  `all`: driveConfig{
+    `sequential_cutoff`: `4194304`,
+    `writeback_percent`: `10`,
+  },
+}
+
+func parse(configFile string) {
+  f, err := os.Open(configFile)
+  if err != nil {
+      fmt.Println("Error opening config file (will use defaults): ", configFile+": ", err)
+  }
+  defer f.Close()
+  decoder := yaml.NewDecoder(f)
+  err = decoder.Decode(&Config)
+  if err != nil {
+      fmt.Println("Error loading values from config file: ", err)
+  }
+}
+
+func (b* bcache_devs) TuneFromFile(configFile string) {
+  parse(configFile)
+  for _, bdev := range b.bdevs {
+    if Config[bdev.CUUID] != nil {
+      for tunable, val := range Config[bdev.CUUID] {
+        b.RunTune(bdev.BcacheDev, tunable+`:`+val)
+      }
+    } else {
+      for tunable, val := range Config["all"] {
+        b.RunTune(bdev.BcacheDev, tunable+`:`+val)
+      }
+    }
+  }
 }
 
 func (b *bcache_devs) RunTune(device string, tunable string) {
@@ -42,9 +94,9 @@ func (b *bcache_devs) RunTune(device string, tunable string) {
         fmt.Println("Couldn't change tunable:", err)
         return
       }
-      fmt.Println("Changed tunable for", device, "("+y.ShortName+")", tunable, "\n")
+      fmt.Println("Changed tunable for", device, "("+y.ShortName+")", tunable)
   }
-  y.PrintFullInfo("standard")
+  //y.PrintFullInfo("standard")
 }
 
 func (b *bcache_bdev) ChangeTunable(tunable string, val string) error {
