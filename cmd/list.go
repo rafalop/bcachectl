@@ -33,9 +33,8 @@ func (b *bcache_devs) RunList(format string, extra string) {
     fmt.Println(out)
   } else if format == "short" {
     for _, bdev := range b.bdevs {
-      fmt.Printf("%s ", bdev.ShortName)
+      fmt.Println(bdev.ShortName)
     }
-    fmt.Printf("\n")
   } else {
       b.printTable(extra_vals)
   }

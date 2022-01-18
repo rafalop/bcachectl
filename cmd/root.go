@@ -426,6 +426,7 @@ var NewBDev string
 var NewCDev string
 var WriteBack bool
 var ApplyToAll bool
+var OutConfigFile string
 
 var rootCmd = &cobra.Command{
   Use:   "bcachectl",
@@ -440,6 +441,7 @@ func Init() {
   listCmd.Flags().StringVarP(&Extra, "extra-vals", "e", "", "Extra settings to print (comma delim)")
   rootCmd.AddCommand(registerCmd)
   rootCmd.AddCommand(unregisterCmd)
+  rootCmd.AddCommand(stopCmd)
   rootCmd.AddCommand(showCmd)
   showCmd.Flags().StringVarP(&Format, "format", "f", "standard", "Output format [standard|json]")
   rootCmd.AddCommand(addCmd)
@@ -448,6 +450,8 @@ func Init() {
   addCmd.Flags().StringVarP(&NewCDev, "cache-device", "C", "", "Cache dev to create, if specified with -B, will auto attach the cache device")
   addCmd.Flags().BoolVarP(&WriteBack, "writeback", "", false, "Use writeback caching (when auto attach specifying -B and -C)")
   rootCmd.AddCommand(tuneCmd)
+  rootCmd.AddCommand(printTunablesCmd)
+  printTunablesCmd.Flags().StringVarP(&OutConfigFile, "outfile", "o", "", "Write out tunables file to this file")
   rootCmd.AddCommand(flushCmd)
   flushCmd.Flags().BoolVarP(&ApplyToAll, "all", "a", false, "Flush all bcache devices")
   rootCmd.AddCommand(attachCmd)
