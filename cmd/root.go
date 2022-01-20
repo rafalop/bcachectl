@@ -350,10 +350,15 @@ func (b *bcache_devs) printTable(extra_vals []string) {
     fmt.Printf("\n")
     //fmt.Printf("%-15s %-15s %-15s\n", "bcache_dev", "backing_dev", "cache_dev")
     for _,bdev := range b.bdevs {
+      if len(extra_vals) > 0 {
+        bdev.extendMap(EXTENDED_VALUES)
+      }
       for _,j := range columns {
 //        bdev.extendMap(extra_vals)
         //fmt.Println(bdev.Map[j])
-        PrintColumn(bdev.Map[j].(string))
+        if bdev.Map[j] != nil {
+          PrintColumn(bdev.Map[j].(string))
+        }
       }
       fmt.Printf("\n")
     }

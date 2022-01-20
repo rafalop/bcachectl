@@ -17,6 +17,8 @@ var flushCmd = &cobra.Command{
       all := allDevs()
       if ApplyToAll {
         all.RunFlush("", true)
+      } else if len(args) == 0{
+        all.RunFlush("", false)
       } else {
         all.RunFlush(args[0], false)
       }
@@ -29,7 +31,7 @@ func (b *bcache_devs) RunFlush(device string, all bool) {
   var y bcache_bdev
   var err error
   if device == "" && ! all {
-    fmt.Println("I need a device to flush, eg.\n bcachectl flush bcache0\n")
+    fmt.Println("I need a device to flush, eg.\n bcachectl flush bcache0\n\nor use -a to flush all.")
     return
   } else if x, y = b.IsBDevice(device); device != "" && ! x {
     fmt.Println(device, "does not appear to be a valid bcache device (expecting valid bcacheXY)\n")
