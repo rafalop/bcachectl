@@ -39,10 +39,19 @@ func RunCreate(newbdev string, newcdev string){
     bcache_cmd = bcache_cmd+" --writeback"
   }
   out, err := RunSystemCommand(bcache_cmd)
-  fmt.Println(out)
+  //fmt.Println(out)
   // we also have to register the cache dev
+  if err != nil {
+    fmt.Println(err)
+  }
   if err == nil {
-    RunRegister([]string{newcdev})
+    fmt.Println("Completed formatting device(s):", newbdev, newcdev)
+    if newbdev != "" {
+      RunRegister([]string{newbdev})
+    }
+    if newcdev != "" {
+      RunRegister([]string{newcdev})
+    }
   }
   already_formatted, _ := regexp.MatchString("Already a bcache device", out)
   busy, _ := regexp.MatchString("Device or resource busy", out)

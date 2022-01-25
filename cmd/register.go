@@ -22,19 +22,18 @@ func RunRegister(devices []string){
   write_path = SYSFS_BCACHE_ROOT+`register`
   all := allDevs()
   for _, device := range devices {
+    //fmt.Println("write_path:", write_path, "device:", device)
     if x := all.IsBCDevice(device); x {
-      fmt.Println("Device is already registered.")
+      fmt.Println(device, "is already registered.")
     } else {
-      ioutil.WriteFile(write_path, []byte(device), 0)
+      err := ioutil.WriteFile(write_path, []byte(device), 0)
       all = allDevs()
-      done := false
-      if x, _ := all.IsCDevice(device); x {
-        done = true
-      }
-      if done {
-        fmt.Println(device, "was registered.")
+      if x, y := all.IsBDevice(device); x {
+        fmt.Println(device, "was registered as", y.ShortName+".")
+      } else if x, y := all.IsCDevice(device); x {
+        fmt.Println(device, "was registered as a cache device with uuid", y.UUID+".")
       } else {
-        fmt.Println("Couldn't register "+device+". If it is a backing device with cache device attached, you should try to register the cache device instead.")
+        fmt.Println("Couldn't register "+device+". Errors:", err)
       }
     }
   }

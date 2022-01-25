@@ -25,13 +25,13 @@ func (b *bcache_devs) RunUnregister(devices []string){
     if x,bdev := b.IsBDevice(device); x {
       write_path = SYSFS_BLOCK_ROOT+bdev.ShortName+`/bcache/stop`
       ioutil.WriteFile(write_path, []byte{1}, 0)
-      fmt.Println(device, "was unregistered, but is still formatted.")
+      fmt.Println(device, "(backing device) was unregistered, but is still formatted.")
       return
     }
     if x,cdev := b.IsCDevice(device); x {
       write_path = SYSFS_BCACHE_ROOT+cdev.UUID+`/stop`
       ioutil.WriteFile(write_path, []byte{1}, 0)
-      fmt.Println(device, "was unregistered, but is still formatted. If this was an active cache device, you may still need to also stop the cache device (only the backing device was unregistered.)")
+      fmt.Println(device, "(cache device) was unregistered, but is still formatted.")
       return
     }
     fmt.Println(device+" does not appear to be a registered bcache device.")
