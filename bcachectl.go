@@ -1,9 +1,9 @@
 package main
 
 import (
-  "bcachectl/cmd"
+	"bcachectl/cmd"
 )
 
-func main () {
-  cmd.Execute()
+func main() {
+	cmd.Execute()
 }
