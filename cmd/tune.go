@@ -7,6 +7,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -59,6 +60,36 @@ func parse(configFile string) {
 	}
 }
 
+// Convert string to bytes string, eg. "1.0k" to "1024"
+func humanToBytes(s string) (bytesVal string) {
+	var l, n []rune
+	for _, r := range s {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			l = append(l, r)
+		case r >= 'a' && r <= 'z':
+			l = append(l, r)
+		case r >= '0' && r <= '9':
+			n = append(n, r)
+		case r == '.':
+			n = append(n, r)
+		}
+	}
+	units := string(l)
+	value := string(n)
+	value_float, _ := strconv.ParseFloat(value, 32)
+	if strings.Contains(units, "k") || strings.Contains(units, "K") {
+		bytesVal = fmt.Sprintf("%d", int(value_float*1024))
+	} else if strings.Contains(units, "m") || strings.Contains(units, "M") {
+		bytesVal = fmt.Sprintf("%d", int(value_float*1024*1024))
+	} else if strings.Contains(units, "g") || strings.Contains(units, "G") {
+		bytesVal = fmt.Sprintf("%d", int(value_float*1024*1024*1024))
+	} else if units == "" {
+		bytesVal = fmt.Sprintf("%d", int(value_float))
+	}
+	return
+}
+
 func (b *bcache_devs) TuneFromFile(configFile string) {
 	parse(configFile)
 	for _, bdev := range b.bdevs {
@@ -89,7 +120,13 @@ func (b *bcache_devs) RunTune(device string, tunable string) {
 		fmt.Println("Tunable does not appear to be specified properly, must be formatted as tunable:value, eg. cache_mode:writethrough\n")
 		return
 	} else {
-		err := y.ChangeTunable(tunable_a[0], tunable_a[1])
+		var valToSet string
+		if tunable_a[0] == "sequential_cutoff" || tunable_a[0] == "readahead" {
+			valToSet = humanToBytes(tunable_a[1])
+		} else {
+			valToSet = tunable_a[1]
+		}
+		err := y.ChangeTunable(tunable_a[0], valToSet)
 		if err != nil {
 			fmt.Println("Couldn't change tunable:", err)
 			return
@@ -101,26 +138,26 @@ func (b *bcache_devs) RunTune(device string, tunable string) {
 
 func (b *bcache_bdev) ChangeTunable(tunable string, val string) error {
 	write_path := SYSFS_BLOCK_ROOT + b.ShortName + `/bcache/`
-  fmt.Println(write_path)
+	fmt.Println(write_path)
 	for _, t := range ALLOWED_TUNABLES {
 		if tunable == t {
-      write_path = write_path + tunable
+			write_path = write_path + tunable
 			b.makeMap(OUTPUT_VALUES)
 		}
 	}
-  for _, t := range CACHE_TUNABLES {
+	for _, t := range CACHE_TUNABLES {
 		if tunable == t {
-      write_path = write_path+`/cache/`+tunable
+			write_path = write_path + `/cache/` + tunable
 			b.makeMap(OUTPUT_VALUES)
 		}
-  }
+	}
 	if _, err := os.Stat(write_path); err != nil {
 		fmt.Println("Tunable does not appear to exist: ", tunable)
 		return errors.New("Tunable path does not exist: " + write_path)
 	} else {
-	  ioutil.WriteFile(write_path, []byte(val), 0)
-    return nil
-  }
+		ioutil.WriteFile(write_path, []byte(val), 0)
+		return nil
+	}
 
 	fmt.Println("Tunable is not in allowed tunable list. Allowed tunables are: ")
 	fmt.Println(ALLOWED_TUNABLES)
