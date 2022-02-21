@@ -100,20 +100,31 @@ func (b *bcache_devs) RunTune(device string, tunable string) {
 }
 
 func (b *bcache_bdev) ChangeTunable(tunable string, val string) error {
-	write_path := SYSFS_BLOCK_ROOT + b.ShortName + `/bcache/` + tunable
+	write_path := SYSFS_BLOCK_ROOT + b.ShortName + `/bcache/`
+  fmt.Println(write_path)
+	for _, t := range ALLOWED_TUNABLES {
+		if tunable == t {
+      write_path = write_path + tunable
+			b.makeMap(OUTPUT_VALUES)
+		}
+	}
+  for _, t := range CACHE_TUNABLES {
+		if tunable == t {
+      write_path = write_path+`/cache/`+tunable
+			b.makeMap(OUTPUT_VALUES)
+		}
+  }
 	if _, err := os.Stat(write_path); err != nil {
 		fmt.Println("Tunable does not appear to exist: ", tunable)
 		return errors.New("Tunable path does not exist: " + write_path)
-	}
-	for _, t := range ALLOWED_TUNABLES {
-		if tunable == t {
-			ioutil.WriteFile(write_path, []byte(val), 0)
-			b.makeMap(OUTPUT_VALUES)
-			return nil
-		}
-	}
+	} else {
+	  ioutil.WriteFile(write_path, []byte(val), 0)
+    return nil
+  }
+
 	fmt.Println("Tunable is not in allowed tunable list. Allowed tunables are: ")
 	fmt.Println(ALLOWED_TUNABLES)
+	fmt.Println(CACHE_TUNABLES)
 	fmt.Println(ALLOWED_TUNABLES_DESCRIPTIONS)
 	return errors.New("Not allowed.")
 }

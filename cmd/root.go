@@ -46,6 +46,12 @@ var ALLOWED_TUNABLES = []string{
 	`cache_mode`,
 	`writeback_percent`,
 	`writeback_delay`,
+	`writeback_rate`,
+}
+
+var CACHE_TUNABLES = []string{
+	`congested_write_threshold_us`,
+	`congested_read_threshold_us`,
 }
 var ALLOWED_TUNABLES_DESCRIPTIONS = `
 sequential_cutoff:<INT>  threshold for a sequential IO to bypass the cache, set using byte value, default 4.0M (4194304)"
@@ -121,7 +127,13 @@ func readVal(path string) (val string) {
 
 // return current setting for a bcache tunable
 func (b *bcache_bdev) Val(name string) (val string) {
-	path := SYSFS_BLOCK_ROOT + `/` + b.ShortName + `/bcache/` + name
+	path := SYSFS_BLOCK_ROOT + `/` + b.ShortName + `/bcache/`
+  for _, p := range CACHE_TUNABLES {
+    if name == p {
+      path = path+`cache/`
+    }
+  }
+  path = path+name
 	rawval_s := readVal(path)
 	if strings.Contains(rawval_s, `[`) {
 		rawval_a := strings.Split(rawval_s, " ")
