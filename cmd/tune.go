@@ -138,7 +138,6 @@ func (b *bcache_devs) RunTune(device string, tunable string) {
 
 func (b *bcache_bdev) ChangeTunable(tunable string, val string) error {
 	write_path := SYSFS_BLOCK_ROOT + b.ShortName + `/bcache/`
-	fmt.Println(write_path)
 	for _, t := range ALLOWED_TUNABLES {
 		if tunable == t {
 			write_path = write_path + tunable
