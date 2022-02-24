@@ -13,16 +13,17 @@ import (
 var stopCmd = &cobra.Command{
 	Use:   "stop {device}",
 	Short: "Try to forcefully stop bcache on a device (remove from sys fs tree)",
-	Long:  "Try to forcefully stop bcache on a device. This is useful if system is returning messages about the device being busy when you are working with it.",
+	Long:  "Try to forcefully stop bcache on a device. Note, this command only accepts physical devs (not /dev/bcacheX) devices.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if IsAdmin {
-			RunStop(args[0])
+			all := allDevs()
+			all.RunStop(args[0])
 		}
 	},
 }
 
-func RunStop(device string) {
+func (b *bcache_devs) RunStop(device string) {
 	var write_path string
 	sn := strings.Split(device, "/")
 	shortName := sn[len(sn)-1]
@@ -36,10 +37,15 @@ func RunStop(device string) {
 		topDev := strings.TrimRightFunc(shortName, func(r rune) bool {
 			return unicode.IsNumber(r)
 		})
-		write_path = SYSFS_BLOCK_ROOT + topDev + `/` + shortName + `/bcache/stop`
+		write_path = SYSFS_BLOCK_ROOT + topDev + `/` + shortName
 	} else {
-		write_path = SYSFS_BLOCK_ROOT + shortName + `/bcache/stop`
+		write_path = SYSFS_BLOCK_ROOT + shortName
 	}
+	write_path = write_path + `/bcache/`
+	if x, _ := b.IsCDevice(device); x {
+		write_path = write_path + `set/`
+	}
+	write_path += `stop`
 
 	err = ioutil.WriteFile(write_path, []byte{1}, 0)
 	if err != nil {
