@@ -29,12 +29,14 @@ var OUTPUT_VALUES = []string{
 
 // extended values to print
 var EXTENDED_VALUES = []string{
+	`stats_total/bypassed`,
 	`stats_total/cache_hits`,
 	`stats_total/cache_misses`,
 	`stats_total/cache_hit_ratio`,
 	`stats_total/cache_bypass_hits`,
 	`stats_total/cache_bypass_misses`,
 	`cache/cache0/cache_replacement_policy`,
+	`cache/congested`,
 	`sequential_cutoff`,
 	`readahead_cache_policy`,
 	`writeback_percent`,
@@ -128,12 +130,12 @@ func readVal(path string) (val string) {
 // return current setting for a bcache tunable
 func (b *bcache_bdev) Val(name string) (val string) {
 	path := SYSFS_BLOCK_ROOT + `/` + b.ShortName + `/bcache/`
-  for _, p := range CACHE_TUNABLES {
-    if name == p {
-      path = path+`cache/`
-    }
-  }
-  path = path+name
+	for _, p := range CACHE_TUNABLES {
+		if name == p {
+			path = path + `cache/`
+		}
+	}
+	path = path + name
 	rawval_s := readVal(path)
 	if strings.Contains(rawval_s, `[`) {
 		rawval_a := strings.Split(rawval_s, " ")
