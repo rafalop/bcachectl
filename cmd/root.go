@@ -432,11 +432,11 @@ func CheckAdmin(user *user.User) bool {
 	return true
 }
 
-func CheckSysFS() bool {
+func CheckSysFS() {
 	if _, err := os.Stat(SYSFS_BCACHE_ROOT); os.IsNotExist(err) {
-		return false
+		fmt.Println("Bcache is not in the sysfs yet, so I can't do anything. Try adding a bcache device first.")
+		os.Exit(1)
 	}
-	return true
 }
 
 // Flags
@@ -459,10 +459,11 @@ var rootCmd = &cobra.Command{
 func Init() {
 	U, _ = user.Current()
 	IsAdmin = CheckAdmin(U)
-	if !CheckSysFS() {
-		fmt.Println("Bcache is not in the sysfs yet, it will come up after you add a device.")
-		os.Exit(0)
-	}
+	rootCmd.AddCommand(addCmd)
+	addCmd.Flags().BoolVarP(&Wipe, "wipe-bcache", "", false, "force reformat if device is already bcache formatted")
+	addCmd.Flags().StringVarP(&NewBDev, "backing-device", "B", "", "Backing dev to create, if specified with -C, will auto attach the cache device")
+	addCmd.Flags().StringVarP(&NewCDev, "cache-device", "C", "", "Cache dev to create, if specified with -B, will auto attach the cache device")
+	addCmd.Flags().BoolVarP(&WriteBack, "writeback", "", false, "Use writeback caching (when auto attach specifying -B and -C)")
 	rootCmd.AddCommand(listCmd)
 	listCmd.Flags().StringVarP(&Format, "format", "f", "table", "Output format [table|json|short]")
 	listCmd.Flags().StringVarP(&Extra, "extra-vals", "e", "", "Extra settings to print (comma delim)")
@@ -471,11 +472,6 @@ func Init() {
 	rootCmd.AddCommand(stopCmd)
 	rootCmd.AddCommand(showCmd)
 	showCmd.Flags().StringVarP(&Format, "format", "f", "standard", "Output format [standard|json]")
-	rootCmd.AddCommand(addCmd)
-	addCmd.Flags().BoolVarP(&Wipe, "wipe-bcache", "", false, "force reformat if device is already bcache formatted")
-	addCmd.Flags().StringVarP(&NewBDev, "backing-device", "B", "", "Backing dev to create, if specified with -C, will auto attach the cache device")
-	addCmd.Flags().StringVarP(&NewCDev, "cache-device", "C", "", "Cache dev to create, if specified with -B, will auto attach the cache device")
-	addCmd.Flags().BoolVarP(&WriteBack, "writeback", "", false, "Use writeback caching (when auto attach specifying -B and -C)")
 	rootCmd.AddCommand(tuneCmd)
 	rootCmd.AddCommand(printTunablesCmd)
 	printTunablesCmd.Flags().StringVarP(&OutConfigFile, "outfile", "o", "", "Write out tunables file to this file")
@@ -491,6 +487,15 @@ func Execute() {
 	if len(os.Args) > 1 && !IsAdmin && !(os.Args[1] == "help" || os.Args[len(os.Args)-1] == "-h" || os.Args[len(os.Args)-1] == "--help") {
 		fmt.Println("bcachectl commands require root privileges\n")
 		return
+	}
+	var checkSysFs = true
+	for _, arg := range os.Args {
+		if arg == `add` || arg == `-h` || arg == `help` || arg == `--help` {
+			checkSysFs = false
+		}
+	}
+	if checkSysFs {
+		CheckSysFS()
 	}
 	rootCmd.Execute()
 	fmt.Println()
