@@ -432,6 +432,13 @@ func CheckAdmin(user *user.User) bool {
 	return true
 }
 
+func CheckSysFS() bool {
+	if _, err := os.Stat(SYSFS_BCACHE_ROOT); os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
+
 // Flags
 var U *user.User
 var IsAdmin bool = false
@@ -452,6 +459,10 @@ var rootCmd = &cobra.Command{
 func Init() {
 	U, _ = user.Current()
 	IsAdmin = CheckAdmin(U)
+	if !CheckSysFS() {
+		fmt.Println("Bcache is not in the sysfs yet, it will come up after you add a device.")
+		os.Exit(0)
+	}
 	rootCmd.AddCommand(listCmd)
 	listCmd.Flags().StringVarP(&Format, "format", "f", "table", "Output format [table|json|short]")
 	listCmd.Flags().StringVarP(&Extra, "extra-vals", "e", "", "Extra settings to print (comma delim)")
