@@ -434,7 +434,8 @@ func CheckAdmin(user *user.User) bool {
 
 func CheckSysFS() {
 	if _, err := os.Stat(SYSFS_BCACHE_ROOT); os.IsNotExist(err) {
-		fmt.Println("Bcache is not in the sysfs yet, so I can't do anything. Try adding a bcache device first.")
+		fmt.Println("Bcache is not in sysfs yet (" + SYSFS_BCACHE_ROOT + "), I can't do anything!")
+		fmt.Printf("Check that the bcache kernel module is loaded:\n\nlsmod|grep bcache\nmodprobe bcache\n\n")
 		os.Exit(1)
 	}
 }
@@ -488,15 +489,7 @@ func Execute() {
 		fmt.Println("bcachectl commands require root privileges\n")
 		return
 	}
-	var checkSysFs = true
-	for _, arg := range os.Args {
-		if arg == `add` || arg == `-h` || arg == `help` || arg == `--help` {
-			checkSysFs = false
-		}
-	}
-	if checkSysFs {
-		CheckSysFS()
-	}
+	CheckSysFS()
 	rootCmd.Execute()
 	fmt.Println()
 }
