@@ -461,7 +461,7 @@ func Init() {
 	U, _ = user.Current()
 	IsAdmin = CheckAdmin(U)
 	rootCmd.AddCommand(addCmd)
-	addCmd.Flags().BoolVarP(&Wipe, "wipe-bcache", "", false, "force reformat if device is already bcache formatted")
+	addCmd.Flags().BoolVarP(&Wipe, "wipe-super", "", false, "force deletion of existing filesystem superblock")
 	addCmd.Flags().StringVarP(&NewBDev, "backing-device", "B", "", "Backing dev to create, if specified with -C, will auto attach the cache device")
 	addCmd.Flags().StringVarP(&NewCDev, "cache-device", "C", "", "Cache dev to create, if specified with -B, will auto attach the cache device")
 	addCmd.Flags().BoolVarP(&WriteBack, "writeback", "", false, "Use writeback caching (when auto attach specifying -B and -C)")

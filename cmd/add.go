@@ -22,28 +22,25 @@ var addCmd = &cobra.Command{
 
 func RunCreate(newbdev string, newcdev string) {
 	bcache_cmd := `/usr/sbin/make-bcache`
+	var out string
 	if newcdev != "" {
 		bcache_cmd = bcache_cmd + ` -C ` + newcdev
+		if Wipe {
+			out, _ = RunSystemCommand(`/sbin/wipefs -a ` + newcdev)
+			fmt.Println(out)
+		}
 	}
 	if newbdev != "" {
 		bcache_cmd = bcache_cmd + ` -B ` + newbdev
-	}
-	if Wipe {
-		out, _ := RunSystemCommand(`/sbin/wipefs -a ` + newbdev)
-		fmt.Println(out)
-		out, _ = RunSystemCommand(`/sbin/wipefs -a ` + newcdev)
-		fmt.Println(out)
-		bcache_cmd = bcache_cmd + " --wipe-bcache"
+		if Wipe {
+			out, _ := RunSystemCommand(`/sbin/wipefs -a ` + newbdev)
+			fmt.Println(out)
+		}
 	}
 	if WriteBack {
 		bcache_cmd = bcache_cmd + " --writeback"
 	}
 	out, err := RunSystemCommand(bcache_cmd)
-	//fmt.Println(out)
-	// we also have to register the cache dev
-	if err != nil {
-		fmt.Println(err)
-	}
 	if err == nil {
 		fmt.Println("Completed formatting device(s):", newbdev, newcdev)
 		if newbdev != "" {
@@ -55,12 +52,13 @@ func RunCreate(newbdev string, newcdev string) {
 	}
 	already_formatted, _ := regexp.MatchString("Already a bcache device", out)
 	busy, _ := regexp.MatchString("Device or resource busy", out)
+	existing_super, _ := regexp.MatchString("non-bcache superblock", out)
 	if busy {
 		fmt.Println("Device is busy - is it already registered bcache dev or mounted?")
 	}
-	if already_formatted {
-		fmt.Println("This format attempt probably registered the existing bcache device and it will show up using:")
-		fmt.Printf("  bcachectl list\n\nIf you REALLY want to format it, unregister it and then use the --wipe-bcache flag (will erase any superblocks and filesystems!):\n  bcachectl unregister {device}\n  bcachectl add -(B|C) {device} --wipe-bcache\n")
+	if already_formatted || existing_super {
+		fmt.Println(out)
+		fmt.Printf("If you REALLY want to format this device, make sure it is not registered and use the --wipe-super flag (will erase ANY superblocks and filesystems!):\n  bcachectl unregister {device}\n  bcachectl add -(B|C) {device} --wipe-super\n")
 	}
 	if err != nil {
 		os.Exit(1)
