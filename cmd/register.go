@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"io/ioutil"
+	"os"
 )
 
 var registerCmd = &cobra.Command{
@@ -27,13 +28,17 @@ func RunRegister(devices []string) {
 			fmt.Println(device, "is already registered.")
 		} else {
 			err := ioutil.WriteFile(write_path, []byte(device), 0)
+			if err != nil {
+				fmt.Println(err)
+			}
 			all = allDevs()
 			if x, y := all.IsBDevice(device); x {
 				fmt.Println(device, "was registered as", y.ShortName+".")
 			} else if x, y := all.IsCDevice(device); x {
 				fmt.Println(device, "was registered as a cache device with uuid", y.UUID+".")
 			} else {
-				fmt.Println("Couldn't register "+device+". Errors:", err)
+				fmt.Println("Couldn't register device. If the device has an associated cache device, try registering the cache device instead.")
+				os.Exit(1)
 			}
 		}
 	}
