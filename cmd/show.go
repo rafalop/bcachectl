@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 var showCmd = &cobra.Command{
@@ -16,9 +17,10 @@ var showCmd = &cobra.Command{
 	},
 }
 
-func (b *bcache_devs) RunShow(format string, device string) {
+func (b *bcache_devs) RunShow(format string, device string) (err error) {
 	if device == "" {
 		fmt.Println("I need a device to show! specify one eg.\n bcachectl show bcache0\n bcachectl show /dev/sda")
+		os.Exit(1)
 		return
 	}
 	found := false
@@ -28,7 +30,7 @@ func (b *bcache_devs) RunShow(format string, device string) {
 	}
 	if found == false {
 		fmt.Println("Device '" + device + "' is not a registered bcache device")
-		return
+		os.Exit(1)
 	}
 	return
 }
