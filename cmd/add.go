@@ -13,19 +13,22 @@ var addCmd = &cobra.Command{
 	Long:  "Add/Format/Create one or more bcache devices, potentially auto attaching a cache device to a backing device if both are specified together (-B) and (-C). This is a wrapper for `make-bcache` and will use the same arguments, eg. -B {backing dev} -C {cache dev}",
 	Run: func(cmd *cobra.Command, args []string) {
 		if IsAdmin && (NewBDev != "" || NewCDev != "") {
-			RunCreate(NewBDev, NewCDev)
+			allDevs := allDevs()
+			allDevs.RunCreate(NewBDev, NewCDev)
 		} else {
 			fmt.Println("I need at least one backing dev (-B) or one cache dev (-C) to format!")
 		}
 	},
 }
 
-func RunCreate(newbdev string, newcdev string) {
+func (b *bcache_devs) RunCreate(newbdev string, newcdev string) {
 	bcache_cmd := `/usr/sbin/make-bcache`
 	var out string
 	if newcdev != "" {
 		bcache_cmd = bcache_cmd + ` -C ` + newcdev
 		if Wipe {
+			bcache_cmd = bcache_cmd + ` --wipe-bcache`
+			b.RunStop(newcdev)
 			out, _ = RunSystemCommand(`/sbin/wipefs -a ` + newcdev)
 			fmt.Println(out)
 		}
@@ -33,8 +36,10 @@ func RunCreate(newbdev string, newcdev string) {
 	if newbdev != "" {
 		bcache_cmd = bcache_cmd + ` -B ` + newbdev
 		if Wipe {
+			b.RunStop(newbdev)
 			out, _ := RunSystemCommand(`/sbin/wipefs -a ` + newbdev)
 			fmt.Println(out)
+			bcache_cmd = bcache_cmd + ` --wipe-bcache`
 		}
 	}
 	if WriteBack {
