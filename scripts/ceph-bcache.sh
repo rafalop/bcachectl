@@ -1,18 +1,16 @@
 #!/bin/bash                                                                    
-## Deploy one or more OSDs with bcache
+## Deploy one or more Ceph OSDs with bcache
 
-DATA_DEVICE=""                         
 DATA_DEVICES_STRING=""
 DB_DEVICE=""
-CACHE_DEVICE=""               
-CACHE_SIZE=""              
-DOIT=0                                                                         
+CACHE_DEVICE=""
+CACHE_SIZE=""
+DOIT=0
 REUSE=0
 CACHE_MODE=writethrough
 SEQ_CUTOFF='8k'
-BCACHECTL=/usr/local/bin/bcachectl                                                                                                                             
+BCACHECTL=/usr/local/bin/bcachectl
 REQUIRED_PKGS=(
-"apache2"
 "parted"
 "bcache-tools"
 )
@@ -22,22 +20,22 @@ function print_help(){
   echo "Prepares one or more OSD(s) with cache on --cache-device and db on --db-device
                                                                                                                                                               
 Required parameters:
-  --data-device {STRING} the data device. Could be whole disk or partition.
-  --cache-device {STRING} the cache device. Must be physical disk, we will try to add partition of size --cache-size to this device.
-  --cache-size {STRING} cache size per drive
+  --data-devices {STRING}[,{STRING},{STRING}...]  the data device(s). Could be whole disk(s) or partition(s).
+  --cache-device {STRING}  the cache device. Must be physical disk, we will try to add partition of size --cache-size to this device.
+  --cache-size {STRING}  cache size per drive/osd
                                                                                                                                                               
 Optional parameters:                    
   --data-devices {STRING},{STRING},{STRING} comma delimited list of devices to deploy, shares --cache-device and --db-device
-  --db-device {STRING} the db device to use for OSD rocksdb. Must be physical disk, we will try to add partition of size --db-size to this device.
-  --db-size {STRING} 
-  --reuse reuse partitions found with correct label (eg. PARTLABEL=\"sdX_cache\" or PARTLABEL=\"sdX_db\")
-  --cache-mode set writeback caching before deploying OSD (default writethrough)
-  --seq-cutoff {string} the bcache sequential cutoff tunable to set before deploy (default $SEQ_CUTOFF)
-  --doit (actually execute)                                                                                                                                   
+  --db-device {STRING}  the db device to use for OSD rocksdb. Must be physical disk, we will try to add partition of size --db-size to this device.
+  --db-size {STRING}  db size per drive/osd
+  --cache-mode  set writeback caching before deploying OSD (default writethrough)
+  --seq-cutoff {string}  the bcache sequential cutoff tunable to set before deploy (default $SEQ_CUTOFF)
+  --reuse  reuse partitions found with correct label (eg. PARTLABEL=\"sdX_cache\" or PARTLABEL=\"sdX_db\")
+  --doit  actually execute
 
 Examples:
-$0 --data-device /dev/sdb --cache-device /dev/sdd --cache-size 30G
-$0 --data-device /dev/sdb --cache-device /dev/sdd --cache-size 30G --db-device /dev/sdd --db-size 30G
+$0 --data-devices /dev/sdb --cache-device /dev/sdd --cache-size 30G
+$0 --data-devices /dev/sdb --cache-device /dev/sdd --cache-size 30G --db-device /dev/sdd --db-size 30G
 $0 --data-devices /dev/sdb,/dev/sdc,/dev/sdd --cache-device /dev/nvme0n1 --cache-size 100G --db-device /dev/nvme0n1 --db-size 30G
                                                                                                                                                               
 "                                                                              
@@ -50,9 +48,6 @@ do
     case $arg in
     "--doit")
         DOIT=1
-    ;;
-    "--data-device")
-        DATA_DEVICE=${args[$pos]}
     ;;
     "--data-devices")
         DATA_DEVICES_STRING=${args[$pos]}
@@ -74,6 +69,9 @@ do
     ;;                           
     "--seq-cutoff")
         SEQ_CUTOFF=${args[$pos]}
+    ;;
+    "--reuse")
+        REUSE=1
     ;;
     "-h")
         print_help
@@ -133,15 +131,9 @@ function runcmd() {
 }
 
 # Check required arguments were given
-if [[ "$DATA_DEVICE" != "" ]] && [[ "$DATA_DEVICES_STRING" != "" ]]
-then
-  log error "Can only specify one of --data-device (single) or --data-devices (multiple,devs)"
-  print_help
-  exit
-fi
-if [[ "$DATA_DEVICE" == "" ]] && [[ "$DATA_DEVICES_STRING" == "" ]]
+if [[ "$DATA_DEVICES_STRING" == "" ]]
 then 
-  log error "Missing required parameter --data-device or --data-devices"
+  log error "Missing required parameter --data-devices"
   print_help
   exit 1
 fi
@@ -153,56 +145,41 @@ if [[ "$DB_DEVICE" != "" ]] && [[ "$DB_SIZE" == "" ]]; then log error "A DB devi
 if [[ "$DB_SIZE" != "" ]] && [[ "$DB_DEVICE" == "" ]]; then log error "A DB size was specified but no --db-device was given"; print_help;exit 1;fi
 
 # Check overlapping devices
-if [[ "$DATA_DEVICE" != "" ]] && [[ "$CACHE_DEVICE" == "$DATA_DEVICE" ]]; then log error "The data device and the cache device cannot be the same ($DATA_DEVICE was given for both)"; print_help; exit 1;fi
-if [[ "$DATA_DEVICE" != "" ]] && [[ "$DB_DEVICE" == "$DATA_DEVICE" ]]; then log error "The data device and the db device cannot be the same ($DATA_DEVICE was given for both)"; print_help; exit 1;fi
+DATA_DEVICES=( $(echo $DATA_DEVICES_STRING | tr ',' ' ') )
+for dev in ${DATA_DEVICES[*]}
+do
+  if [[ "$dev" == $CACHE_DEVICE ]]
+  then
+    log error "The data device and cache device cannot be the same (${dev} was given for both)"
+    exit 1
+  fi
+  if [[ "$dev" == $DB_DEVICE ]]
+  then
+    log error "The data device and db device cannot be the same (${dev} was given for both)"
+    exit 1
+  fi
+done
 
-if [[ "$DATA_DEVICES_STRING" != "" ]]
+# Batch - multiple devices
+if [[ ${#DATA_DEVICES[@]} -gt 1 ]]
 then
-  DATA_DEVICES=( $(echo $DATA_DEVICES_STRING | tr ',' ' ') )
   for dev in ${DATA_DEVICES[*]}
   do
-    if [[ "$dev" == $CACHE_DEVICE ]]
-    then
-      log error "The data device and cache device cannot be the same (${dev} was given for both)"
-      exit 1
-    fi
-    if [[ "$dev" == $DB_DEVICE ]]
-    then
-      log error "The data device and db device cannot be the same (${dev} was given for both)"
-      exit 1
-    fi
-  done
-fi
-
-
-
-if [[ "$DATA_DEVICES_STRING" != "" ]]
-then
-  log "Runing in batch mode (multiple data devices)..."
-  log "==== Batch settings ===="
-  log "`printf "%-20s%s\n" "DATA_DEVICES:" "$DATA_DEVICES_STRING"`"
-  log "`printf "%-20s%s\n" "CACHE_DEVICE:" "$CACHE_DEVICE"`"
-  log "`printf "%-20s%s\n" "CACHE_SIZE:" "$CACHE_SIZE"`"
-  log "`printf "%-20s%s\n" "DB_DEVICE:" "$DB_DEVICE"`"
-  log "`printf "%-20s%s\n" "DB_SIZE:" "$DB_SIZE"`"
-  log "`printf "%-20s%s\n" "CACHE_MODE:" "$CACHE_MODE"`"
-  log "`printf "%-20s%s\n" "SEQ_CUTOFF:" "$SEQ_CUTOFF"`"
-  log ""
-  DATA_DEVICES=( $(echo $DATA_DEVICES_STRING | tr ',' ' ') )
-  for dev in ${DATA_DEVICES[*]}
-  do
-    log "Deploying $dev with cache on $CACHE_DEVICE and db on $DB_DEVICE..."
     if [[ "$DB_DEVICE" == "" ]]
     then
-      bash ./$0 --data-device $dev --cache-device $CACHE_DEVICE --cache-size $CACHE_SIZE --cache-mode $CACHE_MODE --seq-cutoff $SEQ_CUTOFF $(if [[ $DOIT -eq 1 ]];then echo "--doit";fi)
+      bash ./$0 --data-devices $dev --cache-device $CACHE_DEVICE --cache-size $CACHE_SIZE --cache-mode $CACHE_MODE --seq-cutoff $SEQ_CUTOFF $(if [[ $DOIT -eq 1 ]];then echo "--doit";fi)
     else
-      bash ./$0 --data-device $dev --cache-device $CACHE_DEVICE --cache-size $CACHE_SIZE --db-device $DB_DEVICE --db-size $DB_SIZE --cache-mode $CACHE_MODE --seq-cutoff $SEQ_CUTOFF $(if [[ $DOIT -eq 1 ]];then echo "--doit";fi)
+      bash ./$0 --data-devices $dev --cache-device $CACHE_DEVICE --cache-size $CACHE_SIZE --db-device $DB_DEVICE --db-size $DB_SIZE --cache-mode $CACHE_MODE --seq-cutoff $SEQ_CUTOFF $(if [[ $DOIT -eq 1 ]];then echo "--doit";fi)
     fi
   done
   exit
+else
+  DATA_DEVICE=${DATA_DEVICES[0]}
 fi
 
-log "==== Settings ===="
+# Main
+echo
+log "==== bcache OSD Settings ===="
 log "`printf "%-20s%s\n" "DATA_DEVICE:" "$DATA_DEVICE"`"
 log "`printf "%-20s%s\n" "CACHE_DEVICE:" "$CACHE_DEVICE"`"
 log "`printf "%-20s%s\n" "CACHE_SIZE:" "$CACHE_SIZE"`"
@@ -211,12 +188,6 @@ log "`printf "%-20s%s\n" "DB_SIZE:" "$DB_SIZE"`"
 log "`printf "%-20s%s\n" "CACHE_MODE:" "$CACHE_MODE"`"
 log "`printf "%-20s%s\n" "SEQ_CUTOFF:" "$SEQ_CUTOFF"`"
 
-if [[ $DOIT -ne 1 ]]
-then
-  log ""
-  log "--doit was not used, exiting" 
-  exit 0
-fi
 
 SHORTNAME=""
 function get_shortname(){
@@ -225,6 +196,12 @@ function get_shortname(){
 
 log "Checking supplied parameters..."
 # Check devices are ok to use (real devices, no filesystems)
+if [[ ! -b $DATA_DEVICE ]]
+then
+  log error "$DATA_DEVICE is not a detected device (looked in /dev)."
+  exit 1
+fi
+
 get_shortname $CACHE_DEVICE
 if [[ ! -d /sys/block/${SHORTNAME} ]]
 then
@@ -248,7 +225,7 @@ fi
 
 # Check if a cache already exists for the backing device
 get_shortname $DATA_DEVICE
-if blkid -o device -t PARTLABEL="${SHORTNAME}_cache"
+if [[ `blkid -o device -t PARTLABEL="${SHORTNAME}_cache"` ]]
 then
   log error "There already appears to be a cache partition for $SHORTNAME:"
   log error "$(blkid -t PARTLABEL=\"${SHORTNAME}_cache\")"
@@ -264,8 +241,16 @@ then
   if [[ $REUSE -eq 0 ]];then exit 1;fi
 fi
 
-# Format the backing device
 log "Checks complete"
+
+if [[ $DOIT -ne 1 ]]
+then
+  log ""
+  log "--doit was not used, exiting" 
+  exit 0
+fi
+
+# Format the backing device
 log "Preparing bcache device..."
 cmd="$BCACHECTL add -B $DATA_DEVICE"
 runcmd "$cmd"
@@ -278,17 +263,25 @@ fi
 # Add cache partition
 log "Preparing cache partition..."
 get_shortname $DATA_DEVICE
-cache_dev=$(blkid -o -t PARTLABEL="${SHORTNAME}_cache")
+cmd="partx -a $CACHE_DEVICE"
+runcmd "$cmd"
+cache_dev=$(blkid -o device -t PARTLABEL="${SHORTNAME}_cache")
+echo "cache_dev: $cache_dev"
 if [[ "$cache_dev" != "" ]]
 then
-  log "Existing partition found for ${SHORTNAME}_cache, attempting to reuse."
+  log "Existing partition found for ${SHORTNAME}_cache."
+  if [[ $REUSE -eq 0 ]]
+  then
+    log "--reuse was not specified, exiting as there is an existing partition cache partition (${cache_dev}) we are not going to reuse."
+    exit 1
+  fi
   $BCACHECTL stop $cache_dev 
 else
   cmd="sgdisk -n 0:0:+${CACHE_SIZE} -c 0:${SHORTNAME}_cache $CACHE_DEVICE"
   runcmd "$cmd"
   cmd="partx -a $CACHE_DEVICE"
   runcmd "$cmd"
-  if ! blkid -t PARTLABEL="${SHORTNAME}_cache"
+  if [[ ! `blkid -t PARTLABEL="${SHORTNAME}_cache"` ]]
   then
     log error "Error creating cache partition."
     if [[ $DOIT -eq 1 ]]; then exit 1; fi
@@ -304,18 +297,23 @@ log "Attaching cache device $cache_dev to backing device $DATA_DEVICE"
 cmd="$BCACHECTL attach $cache_dev $DATA_DEVICE"
 runcmd "$cmd"
 cmd="$BCACHECTL tune $DATA_DEVICE cache_mode:$CACHE_MODE"
-runcmd
+runcmd "$cmd"
 cmd="$BCACHECTL tune $DATA_DEVICE sequential_cutoff:$SEQ_CUTOFF"
-runcmd
+runcmd "$cmd"
 
 # Add optional db partition
 get_shortname $DATA_DEVICE
 if [[ "$DB_DEVICE" != "" ]]
 then
-  db_dev=$(blkid -o -t PARTLABEL="${SHORTNAME}_cache")
+  db_dev=$(blkid -o device -t PARTLABEL="${SHORTNAME}_db")
   if [[ "$db_dev" != "" ]]
   then
-    log "Existing partition found for ${SHORTNAME}_cache, attempting to reuse."
+    log "Existing partition found for ${SHORTNAME}_db"
+    if [[ $REUSE -eq 0 ]]
+    then
+      log "--reuse was not specified, exiting as there is an existing db partition (${cache_dev}) we are not going to reuse."
+      exit 1
+    fi
     ceph-volume lvm zap $db_dev
   else
     log "Preparing db partition..."
