@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"io/ioutil"
-	"os"
 	"regexp"
 	"strings"
 	"unicode"
@@ -15,15 +14,16 @@ var stopCmd = &cobra.Command{
 	Short: "Try to forcefully stop bcache on a device (remove from sys fs tree)",
 	Long:  "Try to forcefully stop bcache on a device. Note, this command only accepts physical devs (not /dev/bcacheX) devices.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if IsAdmin {
 			all := allDevs()
-			all.RunStop(args[0])
+			return all.RunStop(args[0])
 		}
+		return nil
 	},
 }
 
-func (b *bcache_devs) RunStop(device string) {
+func (b *bcache_devs) RunStop(device string) error {
 	var write_path string
 	sn := strings.Split(device, "/")
 	shortName := sn[len(sn)-1]
@@ -31,7 +31,7 @@ func (b *bcache_devs) RunStop(device string) {
 	matched, err := regexp.Match(regexpString, []byte(shortName))
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 	if matched {
 		topDev := strings.TrimRightFunc(shortName, func(r rune) bool {
@@ -50,8 +50,8 @@ func (b *bcache_devs) RunStop(device string) {
 	err = ioutil.WriteFile(write_path, []byte{1}, 0)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 	fmt.Println(device, "was stopped, but is still formatted.")
-	return
+	return nil
 }
