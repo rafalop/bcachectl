@@ -336,5 +336,10 @@ log "Deploying OSD..."
 get_shortname $DATA_DEVICE
 osd_data_device=`$BCACHECTL list | grep $DATA_DEVICE | awk '{print $1}'`
 osd_db_device=`blkid -o device -t PARTLABEL="${SHORTNAME}_db"`
-cmd="ceph-volume lvm create --data $osd_data_device --block.db $osd_db_device"
+if [[ "$os_db_device" == "" ]]
+then
+  cmd="ceph-volume lvm create --data $osd_data_device"
+else
+  cmd="ceph-volume lvm create --data $osd_data_device --block.db $osd_db_device"
+fi
 runcmd "$cmd"
