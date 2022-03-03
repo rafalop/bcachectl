@@ -396,9 +396,9 @@ fi
 log "Deploying OSD..."
 get_shortname $DATA_DEVICE
 osd_data_device=`$BCACHECTL list | grep $DATA_DEVICE | awk '{print $1}'`
-osd_db_device=`blkid -o device -t PARTLABEL="${SHORTNAME}_db"`
-osd_wal_device=`blkid -o device -t PARTLABEL="${SHORTNAME}_wal"`
+osd_db_part=`blkid -o device -t PARTLABEL="${SHORTNAME}_db"`
+osd_wal_part=`blkid -o device -t PARTLABEL="${SHORTNAME}_wal"`
 cmd="ceph-volume lvm create --data $osd_data_device"
-if [[ "$os_db_device" != "" ]]; then cmd="$cmd --block.db $osd_db_device";fi
-if [[ "$os_wal_device" != "" ]]; then cmd="$cmd --block.wal $osd_wal_device";fi
+if [[ "$osd_db_part" != "" ]]; then cmd="$cmd --block.db $osd_db_part";fi
+if [[ "$osd_wal_part" != "" ]]; then cmd="$cmd --block.wal $osd_wal_part";fi
 runcmd "$cmd"
