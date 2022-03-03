@@ -58,8 +58,8 @@ $GOBIN build bcachectl
 echo
 if [[ -f bcachectl ]]
 then
-        echo "Installing bcachectl to /usr/local/bin..."
-        cp bcachectl /usr/local/bin/bcachectl
+        echo "Installing bcachectl to $INSTALL_LOC..."
+        cp bcachectl $INSTALL_LOC
         echo "Done!"
 else
         echo "Error building bcachectl."
