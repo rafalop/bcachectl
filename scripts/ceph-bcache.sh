@@ -214,7 +214,7 @@ log "Checking supplied parameters..."
 # Check devices are ok to use (real devices, no filesystems)
 if [[ ! -b $DATA_DEVICE ]]
 then
-  log error "$DATA_DEVICE is not a detected device (looked in /dev)."
+  log error "$DATA_DEVICE is not a detected device."
   exit 1
 fi
 
