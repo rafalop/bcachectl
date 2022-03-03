@@ -3,6 +3,7 @@
 
 DATA_DEVICES_STRING=""
 DB_DEVICE=""
+WAL_DEVICE=""
 CACHE_DEVICE=""
 CACHE_SIZE=""
 DOIT=0
@@ -27,7 +28,9 @@ Required parameters:
 Optional parameters:                    
   --data-devices {STRING},{STRING},{STRING} comma delimited list of devices to deploy, shares --cache-device and --db-device
   --db-device {STRING}  the db device to use for OSD rocksdb. Must be physical disk, we will try to add partition of size --db-size to this device.
-  --db-size {STRING}  db size per drive/osd
+  --db-size {STRING}  db size per drive/osd, required if --db-device is specified
+  --wal-device {STRING}  the wal device to use for OSD wal. Must be physical disk, we will try to add partition of size --wal-size to this device.
+  --wal-size {STRING}  wal size per drive/osd, required if --wal-device is specified
   --cache-mode  set writeback caching before deploying OSD (default writethrough)
   --seq-cutoff {string}  the bcache sequential cutoff tunable to set before deploy (default $SEQ_CUTOFF)
   --reuse  reuse partitions found with correct label (eg. PARTLABEL=\"sdX_cache\" or PARTLABEL=\"sdX_db\")
@@ -63,6 +66,12 @@ do
     ;;
     "--db-size")                    
         DB_SIZE=${args[$pos]}
+    ;;
+    "--wal-device")
+        WAL_DEVICE=${args[$pos]}
+    ;;
+    "--wal-size")
+        WAL_SIZE=${args[$pos]}
     ;;
     "--cache-mode")
         CACHE_MODE=${args[$pos]}
@@ -143,6 +152,8 @@ if [[ "$CACHE_SIZE" == "" ]]; then log error "Missing required parameter --cache
 # Check dependent arguments
 if [[ "$DB_DEVICE" != "" ]] && [[ "$DB_SIZE" == "" ]]; then log error "A DB device was specified but no --db-size was given"; print_help;exit 1;fi
 if [[ "$DB_SIZE" != "" ]] && [[ "$DB_DEVICE" == "" ]]; then log error "A DB size was specified but no --db-device was given"; print_help;exit 1;fi
+if [[ "$WAL_DEVICE" != "" ]] && [[ "$WAL_SIZE" == "" ]]; then log error "A WAL device was specified but no --wal-size was given"; print_help;exit 1;fi
+if [[ "$WAL_SIZE" != "" ]] && [[ "$WAL_DEVICE" == "" ]]; then log error "A WAL size was specified but no --wal-device was given"; print_help;exit 1;fi
 
 # Check overlapping devices
 DATA_DEVICES=( $(echo $DATA_DEVICES_STRING | tr ',' ' ') )
@@ -165,11 +176,14 @@ if [[ ${#DATA_DEVICES[@]} -gt 1 ]]
 then
   for dev in ${DATA_DEVICES[*]}
   do
-    if [[ "$DB_DEVICE" == "" ]]
+    cmd="./$0 --data-devices $dev --cache-device $CACHE_DEVICE --cache-size $CACHE_SIZE --cache-mode $CACHE_MODE --seq-cutoff $SEQ_CUTOFF $(if [[ $DOIT -eq 1 ]];then echo "--doit";fi)"
+    if [[ "$DB_DEVICE" != "" ]]
     then
-      bash ./$0 --data-devices $dev --cache-device $CACHE_DEVICE --cache-size $CACHE_SIZE --cache-mode $CACHE_MODE --seq-cutoff $SEQ_CUTOFF $(if [[ $DOIT -eq 1 ]];then echo "--doit";fi)
-    else
-      bash ./$0 --data-devices $dev --cache-device $CACHE_DEVICE --cache-size $CACHE_SIZE --db-device $DB_DEVICE --db-size $DB_SIZE --cache-mode $CACHE_MODE --seq-cutoff $SEQ_CUTOFF $(if [[ $DOIT -eq 1 ]];then echo "--doit";fi)
+      cmd="$CMD --db-device $DB_DEVICE --db-size $DB_SIZE" 
+    fi
+    if [[ "$WAL_DEVICE" != "" ]]
+    then
+      cmd="$CMD --wal-device $WAL_DEVICE --wal-size $WAL_SIZE" 
     fi
   done
   exit
@@ -185,6 +199,8 @@ log "`printf "%-20s%s\n" "CACHE_DEVICE:" "$CACHE_DEVICE"`"
 log "`printf "%-20s%s\n" "CACHE_SIZE:" "$CACHE_SIZE"`"
 log "`printf "%-20s%s\n" "DB_DEVICE:" "$DB_DEVICE"`"
 log "`printf "%-20s%s\n" "DB_SIZE:" "$DB_SIZE"`"
+log "`printf "%-20s%s\n" "WAL_DEVICE:" "$WAL_DEVICE"`"
+log "`printf "%-20s%s\n" "WAL_SIZE:" "$WAL_SIZE"`"
 log "`printf "%-20s%s\n" "CACHE_MODE:" "$CACHE_MODE"`"
 log "`printf "%-20s%s\n" "SEQ_CUTOFF:" "$SEQ_CUTOFF"`"
 
@@ -216,6 +232,13 @@ then
   exit 1
 fi
 
+get_shortname $WAL_DEVICE
+if [[ "$WAL_DEVICE" != "" ]] && [[ ! -d /sys/block/${SHORTNAME} ]]
+then
+  log error "${WAL_DEVICE} is not an acceptable DB device (physical disk that can be partitioned). Is it a partition?"
+  exit 1
+fi
+
 # Check data device is not already a bcache device
 if $BCACHECTL list | grep $DATA_DEVICE
 then
@@ -238,6 +261,15 @@ if [[ "$DB_DEVICE" != "" ]] && [[ `blkid -o device -t PARTLABEL="${SHORTNAME}_db
 then
   log error "There already appears to be a db partition for $SHORTNAME:"
   log error "$(blkid -t PARTLABEL=\"${SHORTNAME}_db\")" 
+  if [[ $REUSE -eq 0 ]];then exit 1;fi
+fi
+
+# Check if wal partition already exists
+get_shortname $WAL_DEVICE
+if [[ "$WAL_DEVICE" != "" ]] && [[ `blkid -o device -t PARTLABEL="${SHORTNAME}_wal"` ]]
+then
+  log error "There already appears to be a wal partition for $SHORTNAME:"
+  log error "$(blkid -t PARTLABEL=\"${SHORTNAME}_wal\")" 
   if [[ $REUSE -eq 0 ]];then exit 1;fi
 fi
 
@@ -305,16 +337,16 @@ runcmd "$cmd"
 get_shortname $DATA_DEVICE
 if [[ "$DB_DEVICE" != "" ]]
 then
-  db_dev=$(blkid -o device -t PARTLABEL="${SHORTNAME}_db")
-  if [[ "$db_dev" != "" ]]
+  db_part=$(blkid -o device -t PARTLABEL="${SHORTNAME}_db")
+  if [[ "$db_part" != "" ]]
   then
     log "Existing partition found for ${SHORTNAME}_db"
     if [[ $REUSE -eq 0 ]]
     then
-      log "--reuse was not specified, exiting as there is an existing db partition (${cache_dev}) we are not going to reuse."
+      log "--reuse was not specified, exiting as there is an existing db partition (${db_part}) we are not going to reuse."
       exit 1
     fi
-    ceph-volume lvm zap $db_dev
+    ceph-volume lvm zap $db_part
   else
     log "Preparing db partition..."
     get_shortname $DATA_DEVICE
@@ -330,16 +362,43 @@ then
   fi
 fi
 
+# Add optional wal partition
+get_shortname $DATA_DEVICE
+if [[ "$WAL_DEVICE" != "" ]]
+then
+  wal_part=$(blkid -o device -t PARTLABEL="${SHORTNAME}_wal")
+  if [[ "$wal_part" != "" ]]
+  then
+    log "Existing partition found for ${SHORTNAME}_wal"
+    if [[ $REUSE -eq 0 ]]
+    then
+      log "--reuse was not specified, exiting as there is an existing wal partition (${wal_part}) we are not going to reuse."
+      exit 1
+    fi
+    ceph-volume lvm zap $wal_part
+  else
+    log "Preparing wal partition..."
+    get_shortname $DATA_DEVICE
+    cmd="sgdisk -n 0:0:+${WAL_SIZE} -c 0:${SHORTNAME}_wal $WAL_DEVICE"
+    runcmd "$cmd"
+    cmd="partx -a $WAL_DEVICE"
+    runcmd "$cmd"
+  fi
+  if ! blkid -t PARTLABEL="${SHORTNAME}_wal"
+  then
+    log error "Error setting up wal partition."
+    if [[ $DOIT -eq 1 ]]; then exit 1; fi
+  fi
+fi
+
 
 # Deploy OSD
 log "Deploying OSD..."
 get_shortname $DATA_DEVICE
 osd_data_device=`$BCACHECTL list | grep $DATA_DEVICE | awk '{print $1}'`
 osd_db_device=`blkid -o device -t PARTLABEL="${SHORTNAME}_db"`
-if [[ "$os_db_device" == "" ]]
-then
-  cmd="ceph-volume lvm create --data $osd_data_device"
-else
-  cmd="ceph-volume lvm create --data $osd_data_device --block.db $osd_db_device"
-fi
+osd_wal_device=`blkid -o device -t PARTLABEL="${SHORTNAME}_wal"`
+cmd="ceph-volume lvm create --data $osd_data_device"
+if [[ "$os_db_device" != "" ]]; then cmd="$cmd --block.db $osd_db_device";fi
+if [[ "$os_wal_device" != "" ]]; then cmd="$cmd --block.wal $osd_wal_device";fi
 runcmd "$cmd"
