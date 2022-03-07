@@ -11,6 +11,7 @@ REUSE=0
 CACHE_MODE=writethrough
 SEQ_CUTOFF='8k'
 BCACHECTL=/usr/local/bin/bcachectl
+CV_ARGS=""
 REQUIRED_PKGS=(
 "parted"
 "bcache-tools"
@@ -34,6 +35,7 @@ Optional parameters:
   --cache-mode  set writeback caching before deploying OSD (default writethrough)
   --seq-cutoff {string}  the bcache sequential cutoff tunable to set before deploy (default $SEQ_CUTOFF)
   --reuse  reuse partitions found with correct label (eg. PARTLABEL=\"sdX_cache\" or PARTLABEL=\"sdX_db\")
+  --cv-args '{STRING}[,{STRING},{STRING}...]'  ceph-volume additional args to append when creating osd (eg. '--osd-id=88,--crush-device-class=foo' etc)
   --doit  actually execute
 
 Examples:
@@ -81,6 +83,9 @@ do
     ;;
     "--reuse")
         REUSE=1
+    ;;
+    "--cv-args")
+        CV_ARGS="${args[$pos]}"
     ;;
     "-h")
         print_help
@@ -203,6 +208,7 @@ log "`printf "%-20s%s\n" "WAL_DEVICE:" "$WAL_DEVICE"`"
 log "`printf "%-20s%s\n" "WAL_SIZE:" "$WAL_SIZE"`"
 log "`printf "%-20s%s\n" "CACHE_MODE:" "$CACHE_MODE"`"
 log "`printf "%-20s%s\n" "SEQ_CUTOFF:" "$SEQ_CUTOFF"`"
+log "`printf "%-20s%s\n" "CV_ARGS:" "$(echo $CV_ARGS | tr ',' ' ' )"`"
 
 
 SHORTNAME=""
@@ -398,7 +404,7 @@ get_shortname $DATA_DEVICE
 osd_data_device=`$BCACHECTL list | grep $DATA_DEVICE | awk '{print $1}'`
 osd_db_part=`blkid -o device -t PARTLABEL="${SHORTNAME}_db"`
 osd_wal_part=`blkid -o device -t PARTLABEL="${SHORTNAME}_wal"`
-cmd="ceph-volume lvm create --data $osd_data_device"
+cmd="ceph-volume lvm create $(echo $CV_ARGS|tr ',' ' ') --data $osd_data_device "
 if [[ "$osd_db_part" != "" ]]; then cmd="$cmd --block.db $osd_db_part";fi
 if [[ "$osd_wal_part" != "" ]]; then cmd="$cmd --block.wal $osd_wal_part";fi
 runcmd "$cmd"
