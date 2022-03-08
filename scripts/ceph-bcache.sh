@@ -190,6 +190,7 @@ then
     then
       cmd="$CMD --wal-device $WAL_DEVICE --wal-size $WAL_SIZE" 
     fi
+    $cmd
   done
   exit
 else
@@ -208,7 +209,7 @@ log "`printf "%-20s%s\n" "WAL_DEVICE:" "$WAL_DEVICE"`"
 log "`printf "%-20s%s\n" "WAL_SIZE:" "$WAL_SIZE"`"
 log "`printf "%-20s%s\n" "CACHE_MODE:" "$CACHE_MODE"`"
 log "`printf "%-20s%s\n" "SEQ_CUTOFF:" "$SEQ_CUTOFF"`"
-log "`printf "%-20s%s\n" "CV_ARGS:" "$(echo $CV_ARGS | tr ',' ' ' )"`"
+log "`printf "%-20s%s\n" "CEPH_VOLUME_ARGS:" "$(echo $CV_ARGS | tr ',' ' ' )"`"
 
 
 SHORTNAME=""
