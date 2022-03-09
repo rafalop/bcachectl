@@ -4,7 +4,7 @@ This tool is written to be interoperable with existing bcache tools (eg. make-bc
 ## Requirements
 You should have a kernel that supports bcache (eg. Ubuntu 18.04+), and `bcache-tools` package installed.
 
-## Building binary
+## Building
 First install golang: https://golang.org/doc/install
 Then
 ```
@@ -13,6 +13,12 @@ go mod tidy
 go build bcachectl.go
 ```
 This will produce the binary `bcachectl` in the same dir. You can place in /usr/local/bin or other exec path of your choice.
+
+### The lazy way
+This will install golang for you in /tmp, download files, build and install to `/usr/local/bin/bcachectl`
+```
+curl https://raw.githubusercontent.com/rafalop/bcachectl/main/scripts/install_bcachectl.sh | bash
+```
 
 ## Usage examples
 ### Format and register a bcache backing device
@@ -27,9 +33,10 @@ bcachectl add -C /dev/vdc
 ```
 bcachectl add -B /dev/vdb -C /dev/vdc
 ```
-### List all bcache devices
+### List all bcache devices examples
 ```
 bcachectl list
+bcachectl list -e sequential_cutoff
 bcachectl list -f json
 bcachectl list -f short
 ```
@@ -51,6 +58,7 @@ bcachectl detach /dev/sdd /dev/vda
 ```
 bcachectl tune bcache0 cache_mode:writeback
 bcachectl tune /dev/vdb sequential_cutoff:$((1024*1024))
+bcachectl tune /dev/vdb sequential_cutoff:1M
 ```
 
 ## bcache notes/quirks
