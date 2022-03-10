@@ -17,7 +17,7 @@ This will produce the binary `bcachectl` in the same dir. You can place in /usr/
 ### The lazy way
 This will install golang for you in /tmp, download files, build and install to `/usr/local/bin/bcachectl`
 ```
-curl https://raw.githubusercontent.com/rafalop/bcachectl/main/scripts/install_bcachectl.sh | bash
+curl https://raw.githubusercontent.com/rafalop/bcachectl/main/scripts/install_bcachectl.sh | sudo bash
 ```
 
 ## Usage examples
