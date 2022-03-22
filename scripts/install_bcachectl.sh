@@ -3,6 +3,7 @@
 AARCH64_GO_URL='https://go.dev/dl/go1.17.7.linux-arm64.tar.gz'
 X86_GO_URL='https://go.dev/dl/go1.17.7.linux-amd64.tar.gz'
 INSTALL_LOC=/usr/local/bin/bcachectl
+TMPDIR=/var/tmp
 REINSTALL=0
 
 if [[ "$1" == "reinstall" ]]; then REINSTALL=1;fi
@@ -34,12 +35,12 @@ fi
 GO_ZIP=`echo $GO_URL | sed -e 's/.*\/\(.*\)/\1/g'`
 
 # Download and install go to temp location
-cd /tmp
+cd $TMPDIR
 if [[ ! -d .bcachectl_install ]]; then mkdir .bcachectl_install; fi
 cd .bcachectl_install
 if [[ ! -f $GO_ZIP ]]; then echo "No go zip found, downloading...";echo;wget $GO_URL ;fi
 if [[ ! -d go ]]; then echo "Installing go to $PWD/go...";tar -xzf $GO_ZIP; else echo "Go found installed, not installing. ";fi 
-GOBIN=/tmp/.bcachectl_install/go/bin/go
+GOBIN=${TMPDIR}/.bcachectl_install/go/bin/go
 
 # Clone bcachectl repo
 echo
@@ -49,7 +50,7 @@ if [[ ! -d bcachectl ]]; then git clone https://github.com/rafalop/bcachectl.git
 # Build bcachectl 
 echo
 echo "Building bcachectl..."
-cd /tmp/.bcachectl_install/bcachectl
+cd ${TMPDIR}/.bcachectl_install/bcachectl
 if [[ ! -f go.mod ]]; then $GOBIN mod init bcachectl; fi
 $GOBIN mod tidy
 $GOBIN build bcachectl
