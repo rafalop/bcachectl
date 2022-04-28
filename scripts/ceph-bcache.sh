@@ -160,10 +160,15 @@ if [[ "$DB_SIZE" != "" ]] && [[ "$DB_DEVICE" == "" ]]; then log error "A DB size
 if [[ "$WAL_DEVICE" != "" ]] && [[ "$WAL_SIZE" == "" ]]; then log error "A WAL device was specified but no --wal-size was given"; print_help;exit 1;fi
 if [[ "$WAL_SIZE" != "" ]] && [[ "$WAL_DEVICE" == "" ]]; then log error "A WAL size was specified but no --wal-device was given"; print_help;exit 1;fi
 
-# Check overlapping devices
+# Check overlapping devices and that devices exist
 DATA_DEVICES=( $(echo $DATA_DEVICES_STRING | tr ',' ' ') )
 for dev in ${DATA_DEVICES[*]}
 do
+  if [[ ! -b $dev ]]
+  then
+    log error "The data device ${dev} does not exist, check your --data-devices"
+    exit 1
+  fi
   if [[ "$dev" == $CACHE_DEVICE ]]
   then
     log error "The data device and cache device cannot be the same (${dev} was given for both)"
@@ -181,16 +186,21 @@ if [[ ${#DATA_DEVICES[@]} -gt 1 ]]
 then
   for dev in ${DATA_DEVICES[*]}
   do
-    cmd="./$0 --data-devices $dev --cache-device $CACHE_DEVICE --cache-size $CACHE_SIZE --cache-mode $CACHE_MODE --seq-cutoff $SEQ_CUTOFF $(if [[ $DOIT -eq 1 ]];then echo "--doit";fi)"
+    cmd="$0 --data-devices $dev --cache-device $CACHE_DEVICE --cache-size $CACHE_SIZE --cache-mode $CACHE_MODE --seq-cutoff $SEQ_CUTOFF $(if [[ $DOIT -eq 1 ]];then echo "--doit";fi)"
+    if [[ "$CV_ARGS" != "" ]]
+    then
+      cmd="$cmd --cv-args $CV_ARGS" 
+    fi
     if [[ "$DB_DEVICE" != "" ]]
     then
-      cmd="$CMD --db-device $DB_DEVICE --db-size $DB_SIZE" 
+      cmd="$cmd --db-device $DB_DEVICE --db-size $DB_SIZE" 
     fi
     if [[ "$WAL_DEVICE" != "" ]]
     then
-      cmd="$CMD --wal-device $WAL_DEVICE --wal-size $WAL_SIZE" 
+      cmd="$cmd --wal-device $WAL_DEVICE --wal-size $WAL_SIZE" 
     fi
     $cmd
+    if [[ $? -ne 0 ]];then exit;fi
   done
   exit
 else
@@ -409,3 +419,4 @@ cmd="ceph-volume lvm create $(echo $CV_ARGS|tr ',' ' ') --data $osd_data_device 
 if [[ "$osd_db_part" != "" ]]; then cmd="$cmd --block.db $osd_db_part";fi
 if [[ "$osd_wal_part" != "" ]]; then cmd="$cmd --block.wal $osd_wal_part";fi
 runcmd "$cmd"
+exit $RET
