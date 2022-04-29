@@ -2,11 +2,15 @@
 This tool is written to be interoperable with existing bcache tools (eg. make-bcache), in fact it makes use of the sysfs and paths that are created by bcache tools when you format/register devices to make it much simpler to view, configure and modify bcache setups.
 
 ## Requirements
-You should have a kernel that supports bcache (eg. Ubuntu 18.04+), and `bcache-tools` package installed.
+You should have a kernel that supports bcache (eg. Ubuntu 18.04+), and `bcache-tools` package installed, and go installed (https://golang.org/doc/install).
 
 ## Building
-First install golang: https://golang.org/doc/install
-Then
+Using `make` (requires go already installed):
+```
+make
+make install
+```
+Manual
 ```
 go mod init bcachectl
 go mod tidy
@@ -15,7 +19,7 @@ go build bcachectl.go
 This will produce the binary `bcachectl` in the same dir. You can place in /usr/local/bin or other exec path of your choice.
 
 ### The lazy way
-This will install golang for you in /tmp, download files, build and install to `/usr/local/bin/bcachectl`
+This will do everything including installing golang for you in /tmp, download files, build and install to `/usr/local/bin/bcachectl`
 ```
 curl https://raw.githubusercontent.com/rafalop/bcachectl/main/scripts/install_bcachectl.sh | sudo bash
 ```
