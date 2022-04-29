@@ -1,0 +1,9 @@
+[Unit]
+Description=Tune bcache devices
+
+[Service]
+ExecStart=/usr/local/bin/bcachectl tune from-file /etc/bcachectl.conf
+
+[Install]
+WantedBy=multi-user.target
+
