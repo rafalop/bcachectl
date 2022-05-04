@@ -23,10 +23,11 @@ function print_help(){
                                                                                                                                                               
 Required parameters:
   --data-devices {STRING}[,{STRING},{STRING}...]  the data device(s). Could be whole disk(s) or partition(s).
+
+
+Optional parameters:
   --cache-device {STRING}  the cache device. Must be physical disk, we will try to add partition of size --cache-size to this device.
   --cache-size {STRING}  cache size per drive/osd
-                                                                                                                                                              
-Optional parameters:                    
   --data-devices {STRING},{STRING},{STRING} comma delimited list of devices to deploy, shares --cache-device and --db-device
   --db-device {STRING}  the db device to use for OSD rocksdb. Must be physical disk, we will try to add partition of size --db-size to this device.
   --db-size {STRING}  db size per drive/osd, required if --db-device is specified
@@ -151,8 +152,8 @@ then
   print_help
   exit 1
 fi
-if [[ "$CACHE_DEVICE" == "" ]]; then log error "Missing required parameter --cache-device";print_help;exit 1;fi
-if [[ "$CACHE_SIZE" == "" ]]; then log error "Missing required parameter --cache-size";print_help;exit 1;fi
+#if [[ "$CACHE_DEVICE" == "" ]]; then log error "Missing required parameter --cache-device";print_help;exit 1;fi
+#if [[ "$CACHE_SIZE" == "" ]]; then log error "Missing required parameter --cache-size";print_help;exit 1;fi
 
 # Check dependent arguments
 if [[ "$DB_DEVICE" != "" ]] && [[ "$DB_SIZE" == "" ]]; then log error "A DB device was specified but no --db-size was given"; print_help;exit 1;fi
@@ -186,7 +187,11 @@ if [[ ${#DATA_DEVICES[@]} -gt 1 ]]
 then
   for dev in ${DATA_DEVICES[*]}
   do
-    cmd="$0 --data-devices $dev --cache-device $CACHE_DEVICE --cache-size $CACHE_SIZE --cache-mode $CACHE_MODE --seq-cutoff $SEQ_CUTOFF $(if [[ $DOIT -eq 1 ]];then echo "--doit";fi)"
+    cmd="$0 --data-devices $dev $(if [[ $DOIT -eq 1 ]];then echo "--doit";fi)"
+    if [[ "$CACHE_DEVICE" != "" ]]
+    then
+      cmd="$cmd --cache-device $CACHE_DEVICE --cache-size $CACHE_SIZE --cache-mode $CACHE_MODE --seq-cutoff $SEQ_CUTOFF"
+    fi
     if [[ "$CV_ARGS" != "" ]]
     then
       cmd="$cmd --cv-args $CV_ARGS" 
@@ -299,56 +304,61 @@ then
   exit 0
 fi
 
-# Format the backing device
-log "Preparing bcache device..."
-cmd="$BCACHECTL add -B $DATA_DEVICE"
-runcmd "$cmd"
-if [[ $RET -ne 0 ]]
-then
-  log error "Error creating the bcache device."
-  if [[ $DOIT -eq 1 ]]; then exit 1 ;fi
-fi
 
-# Add cache partition
-log "Preparing cache partition..."
-get_shortname $DATA_DEVICE
-cmd="partx -a $CACHE_DEVICE"
-runcmd "$cmd"
-cache_dev=$(blkid -o device -t PARTLABEL="${SHORTNAME}_cache")
-echo "cache_dev: $cache_dev"
-if [[ "$cache_dev" != "" ]]
+# If we specified a cache device, do all the bcache stuff
+if [[ ${CACHE_DEVICE} != "" ]]
 then
-  log "Existing partition found for ${SHORTNAME}_cache."
-  if [[ $REUSE -eq 0 ]]
-  then
-    log "--reuse was not specified, exiting as there is an existing partition cache partition (${cache_dev}) we are not going to reuse."
-    exit 1
-  fi
-  $BCACHECTL stop $cache_dev 
-else
-  cmd="sgdisk -n 0:0:+${CACHE_SIZE} -c 0:${SHORTNAME}_cache $CACHE_DEVICE"
+  # Format the backing device
+  log "Preparing bcache device..."
+  cmd="$BCACHECTL add -B $DATA_DEVICE"
   runcmd "$cmd"
+  if [[ $RET -ne 0 ]]
+  then
+    log error "Error creating the bcache device."
+    if [[ $DOIT -eq 1 ]]; then exit 1 ;fi
+  fi
+  
+  # Add cache partition
+  log "Preparing cache partition..."
+  get_shortname $DATA_DEVICE
   cmd="partx -a $CACHE_DEVICE"
   runcmd "$cmd"
-  if [[ ! `blkid -t PARTLABEL="${SHORTNAME}_cache"` ]]
+  cache_dev=$(blkid -o device -t PARTLABEL="${SHORTNAME}_cache")
+  echo "cache_dev: $cache_dev"
+  if [[ "$cache_dev" != "" ]]
   then
-    log error "Error creating cache partition."
-    if [[ $DOIT -eq 1 ]]; then exit 1; fi
+    log "Existing partition found for ${SHORTNAME}_cache."
+    if [[ $REUSE -eq 0 ]]
+    then
+      log "--reuse was not specified, exiting as there is an existing partition cache partition (${cache_dev}) we are not going to reuse."
+      exit 1
+    fi
+    $BCACHECTL stop $cache_dev 
+  else
+    cmd="sgdisk -n 0:0:+${CACHE_SIZE} -c 0:${SHORTNAME}_cache $CACHE_DEVICE"
+    runcmd "$cmd"
+    cmd="partx -a $CACHE_DEVICE"
+    runcmd "$cmd"
+    if [[ ! `blkid -t PARTLABEL="${SHORTNAME}_cache"` ]]
+    then
+      log error "Error creating cache partition."
+      if [[ $DOIT -eq 1 ]]; then exit 1; fi
+    fi
   fi
+  cmd="$BCACHECTL add -C $(blkid -o device -t PARTLABEL=\"${SHORTNAME}_cache\") --wipe-super"
+  runcmd "$cmd"
+  
+  # Attach cache to backing device
+  get_shortname $DATA_DEVICE
+  cache_dev=$(blkid -o device -t PARTLABEL="${SHORTNAME}_cache")
+  log "Attaching cache device $cache_dev to backing device $DATA_DEVICE"
+  cmd="$BCACHECTL attach $cache_dev $DATA_DEVICE"
+  runcmd "$cmd"
+  cmd="$BCACHECTL tune $DATA_DEVICE cache_mode:$CACHE_MODE"
+  runcmd "$cmd"
+  cmd="$BCACHECTL tune $DATA_DEVICE sequential_cutoff:$SEQ_CUTOFF"
+  runcmd "$cmd"
 fi
-cmd="$BCACHECTL add -C $(blkid -o device -t PARTLABEL=\"${SHORTNAME}_cache\") --wipe-super"
-runcmd "$cmd"
-
-# Attach cache to backing device
-get_shortname $DATA_DEVICE
-cache_dev=$(blkid -o device -t PARTLABEL="${SHORTNAME}_cache")
-log "Attaching cache device $cache_dev to backing device $DATA_DEVICE"
-cmd="$BCACHECTL attach $cache_dev $DATA_DEVICE"
-runcmd "$cmd"
-cmd="$BCACHECTL tune $DATA_DEVICE cache_mode:$CACHE_MODE"
-runcmd "$cmd"
-cmd="$BCACHECTL tune $DATA_DEVICE sequential_cutoff:$SEQ_CUTOFF"
-runcmd "$cmd"
 
 # Add optional db partition
 get_shortname $DATA_DEVICE
@@ -412,7 +422,12 @@ fi
 # Deploy OSD
 log "Deploying OSD..."
 get_shortname $DATA_DEVICE
-osd_data_device=`$BCACHECTL list | grep $DATA_DEVICE | awk '{print $1}'`
+if [[ $CACHE_DEVICE != "" ]]
+then
+  osd_data_device=`$BCACHECTL list | grep $DATA_DEVICE | awk '{print $1}'`
+else
+  osd_data_device=$DATA_DEVICE
+fi
 osd_db_part=`blkid -o device -t PARTLABEL="${SHORTNAME}_db"`
 osd_wal_part=`blkid -o device -t PARTLABEL="${SHORTNAME}_wal"`
 cmd="ceph-volume lvm create $(echo $CV_ARGS|tr ',' ' ') --data $osd_data_device "
