@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"io/ioutil"
+	"os"
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -41,6 +43,7 @@ func (b *bcache_devs) RunStop(device string) error {
 	} else {
 		write_path = SYSFS_BLOCK_ROOT + shortName
 	}
+	sysfs_path := write_path
 	write_path = write_path + `/bcache/`
 	if x, _ := b.IsCDevice(device); x {
 		write_path = write_path + `set/`
@@ -52,6 +55,15 @@ func (b *bcache_devs) RunStop(device string) error {
 		fmt.Println(err)
 		return err
 	}
-	fmt.Println(device, "was stopped, but is still formatted.")
+	// wait up to 5 seconds for device to disappear, else exit without guarantees
+	sysfs_path = sysfs_path + `/bcache`
+	for i := 0; i < 5; i++ {
+		if _, err := os.Stat(sysfs_path); os.IsNotExist(err) {
+			fmt.Println(device, "bcache sysfs path now removed by kernel.")
+			return nil
+		}
+		time.Sleep(time.Duration(1) * time.Second)
+	}
+	fmt.Println(device, "is still formatted and may still be in sysfs")
 	return nil
 }
