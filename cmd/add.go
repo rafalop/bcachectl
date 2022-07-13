@@ -27,7 +27,6 @@ func (b *bcache_devs) RunCreate(newbdev string, newcdev string) {
 	if newcdev != "" {
 		bcache_cmd = bcache_cmd + ` -C ` + newcdev
 		if Wipe {
-			bcache_cmd = bcache_cmd + ` --wipe-bcache`
 			b.RunStop(newcdev)
 			out, _ = RunSystemCommand(`/sbin/wipefs -a ` + newcdev)
 			fmt.Println(out)
@@ -39,7 +38,6 @@ func (b *bcache_devs) RunCreate(newbdev string, newcdev string) {
 			b.RunStop(newbdev)
 			out, _ := RunSystemCommand(`/sbin/wipefs -a ` + newbdev)
 			fmt.Println(out)
-			bcache_cmd = bcache_cmd + ` --wipe-bcache`
 		}
 	}
 	if WriteBack {
