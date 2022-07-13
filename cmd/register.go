@@ -5,6 +5,10 @@ import (
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
+	"regexp"
+	"strings"
+	"time"
+	"unicode"
 )
 
 var registerCmd = &cobra.Command{
@@ -29,6 +33,10 @@ func RunRegister(devices []string) {
 		} else {
 			err := ioutil.WriteFile(write_path, []byte(device), 0)
 			if err != nil {
+				if checkSysfs(device) {
+					fmt.Println(device, "is already registered.")
+					return
+				}
 				fmt.Println(err)
 			}
 			all = allDevs()
@@ -44,4 +52,32 @@ func RunRegister(devices []string) {
 	}
 	fmt.Println()
 	return
+}
+
+// Helper to check for bcache in sysfs for a device (means kernel already knows about the device)
+func checkSysfs(device string) bool {
+	var sysfsPath string
+	sn := strings.Split(device, "/")
+	shortName := sn[len(sn)-1]
+	regexpString := `[0-9]+`
+	matched, _ := regexp.Match(regexpString, []byte(shortName))
+	if matched {
+		baseDev := strings.TrimRightFunc(shortName, func(r rune) bool {
+			return unicode.IsNumber(r)
+		})
+		sysfsPath = SYSFS_BLOCK_ROOT + baseDev + `/` + shortName + `/bcache`
+	} else {
+		sysfsPath = SYSFS_BLOCK_ROOT + shortName + `/bcache`
+	}
+	fmt.Println("searching for path:" + sysfsPath)
+
+	// Check for sysfs path a couple of times (udev is meant to auto register)
+	for i := 0; i < 1; i++ {
+		if _, err := os.Stat(sysfsPath); !os.IsNotExist(err) {
+			fmt.Println("Found path: " + sysfsPath)
+			return true
+		}
+		time.Sleep(time.Duration(1) * time.Second)
+	}
+	return false
 }
