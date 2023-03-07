@@ -1,10 +1,8 @@
 package cmd
 
 import (
-	"encoding/json"
-	"fmt"
+	"bcachectl/pkg/bcache"
 	"github.com/spf13/cobra"
-	"strings"
 )
 
 var listCmd = &cobra.Command{
@@ -20,28 +18,8 @@ cache_hits
 cache_misses
 writeback_percent`,
 	Run: func(cmd *cobra.Command, args []string) {
-		all := allDevs()
+		all := bcache.AllDevs()
 		all.RunList(Format, Extra)
 	},
 }
 
-func (b *bcache_devs) RunList(format string, extra string) {
-	extra_vals := strings.Split(extra, `,`)
-	for _, j := range b.bdevs {
-		j.extendMap(extra_vals)
-	}
-	if format == "json" {
-		out := `{`
-		jsonb_out, _ := json.Marshal(b.bdevs)
-		jsonc_out, _ := json.Marshal(b.cdevs)
-		out = out + `"bcache_devs":` + string(jsonb_out) + `, "cache_devs":` + string(jsonc_out) + `}`
-		fmt.Println(out)
-	} else if format == "short" {
-		for _, bdev := range b.bdevs {
-			fmt.Println(bdev.ShortName)
-		}
-	} else {
-		b.printTable(extra_vals)
-	}
-	return
-}
