@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
 	"bcachectl/pkg/bcache"
+	"github.com/spf13/cobra"
 )
 
 var showCmd = &cobra.Command{
@@ -15,4 +15,3 @@ var showCmd = &cobra.Command{
 		all.RunShow(Format, args[0])
 	},
 }
-

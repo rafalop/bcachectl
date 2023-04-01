@@ -1,22 +1,23 @@
 package bcache
 
 import (
-	"fmt"
-	"os"
-	"regexp"
 	"encoding/json"
+	"fmt"
 	"io/fs"
+	"os"
 	"os/exec"
+	"regexp"
 	//"os/user"
+	"errors"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
-	"io/ioutil"
 	"time"
 	"unicode"
 )
 
 // This seems to be flaky
-//const BDEVS_DIR = `/dev/bcache/by-uuid/`
+// const BDEVS_DIR = `/dev/bcache/by-uuid/`
 const SYSFS_BCACHE_ROOT = `/sys/fs/bcache/`
 const SYSFS_BLOCK_ROOT = `/sys/block/`
 
@@ -42,16 +43,15 @@ var EXTENDED_VALUES = []string{
 	`dirty_data`,
 }
 
-
 // A bcache (backing) device
 type bcache_bdev struct {
-	BcacheDev  string `json:"BcacheDev"`
-	ShortName  string `json:"ShortName"`
-	BackingDev string `json:"BackingDev"`
-	CacheDev   string `json:"CacheDev"`
-	BUUID string            `json:"BcacheDevUUID"`
-	CUUID  string   `json:"CacheSetUUID"`
-	Slaves []string `json:"Slaves"`
+	BcacheDev  string   `json:"BcacheDev"`
+	ShortName  string   `json:"ShortName"`
+	BackingDev string   `json:"BackingDev"`
+	CacheDev   string   `json:"CacheDev"`
+	BUUID      string   `json:"BcacheDevUUID"`
+	CUUID      string   `json:"CacheSetUUID"`
+	Slaves     []string `json:"Slaves"`
 	// Map will contain extended info about bcache device, eg. stats etc
 	Map map[string]interface{}
 }
@@ -142,7 +142,7 @@ func getSysDevFromID(dev_id string) (path string) {
 	return path
 }
 
-//Find backing and cache devs for a bcache set
+// Find backing and cache devs for a bcache set
 func (b *bcache_bdev) FindBackingAndCacheDevs() {
 	search_path := SYSFS_BLOCK_ROOT + b.ShortName + `/slaves/`
 	//fmt.Println(b.Slaves)
@@ -200,7 +200,7 @@ func (b *bcache_bdev) FindBUUID() {
 	b.BUUID = readVal(uuid_path)
 }
 
-//Find all formatted cache devices (may not be part of bcache set)
+// Find all formatted cache devices (may not be part of bcache set)
 func (b *BcacheDevs) FindCDevs() (err error) {
 	entries, err := os.ReadDir(SYSFS_BCACHE_ROOT)
 	if err != nil {
@@ -226,7 +226,7 @@ func (b *BcacheDevs) FindCDevs() (err error) {
 	return
 }
 
-//Find all bcache devices with settings and metadata
+// Find all bcache devices with settings and metadata
 func (b *BcacheDevs) FindBDevs() (err error) {
 	var basedir string
 	var devs []os.DirEntry
@@ -319,8 +319,8 @@ func (b *bcache_bdev) PrintFullInfo(format string) {
 			CUUID        string
 			ExtendedInfo map[string]interface{}
 		}{
-			ShortName: b.ShortName,
-			BUUID: b.BUUID,
+			ShortName:    b.ShortName,
+			BUUID:        b.BUUID,
 			CUUID:        b.CUUID,
 			ExtendedInfo: b.Map,
 		}
@@ -328,7 +328,7 @@ func (b *bcache_bdev) PrintFullInfo(format string) {
 		fmt.Println(string(json_out))
 	} else {
 		fmt.Printf("%-30s%s\n", "ShortName:", b.ShortName)
-		fmt.Printf("%-30s%s\n", "Bcache Dev UUID:" , b.BUUID)
+		fmt.Printf("%-30s%s\n", "Bcache Dev UUID:", b.BUUID)
 		fmt.Printf("%-30s%s\n", "Cache Set UUID:", b.CUUID)
 		for k, v := range b.Map {
 			fmt.Printf("%-30s%s\n", k+`:`, v)
@@ -419,13 +419,13 @@ func Wipe(device string) (out string, err error) {
 	return
 }
 
-func (b *BcacheDevs) RunCreate(newbdev string, newcdev string, wipe bool, writeback bool) {
+func (b *BcacheDevs) Create(newbdev string, newcdev string, wipe bool, writeback bool) (returnErr error) {
 	bcache_cmd := `/usr/sbin/make-bcache`
 	var out string
 	if newcdev != "" {
 		bcache_cmd = bcache_cmd + ` -C ` + newcdev
 		if wipe {
-			b.RunStop(newcdev)
+			b.Stop(newcdev)
 			//out, _ = RunSystemCommand(`/sbin/wipefs -a ` + newcdev)
 			Wipe(newcdev)
 			fmt.Println(out)
@@ -434,7 +434,7 @@ func (b *BcacheDevs) RunCreate(newbdev string, newcdev string, wipe bool, writeb
 	if newbdev != "" {
 		bcache_cmd = bcache_cmd + ` -B ` + newbdev
 		if wipe {
-			b.RunStop(newbdev)
+			b.Stop(newbdev)
 			//out, _ := RunSystemCommand(`/sbin/wipefs -a ` + newbdev)
 			Wipe(newbdev)
 			fmt.Println(out)
@@ -445,40 +445,94 @@ func (b *BcacheDevs) RunCreate(newbdev string, newcdev string, wipe bool, writeb
 	}
 	out, err := RunSystemCommand(bcache_cmd)
 	if err == nil {
-		fmt.Println("Completed formatting device(s):", newbdev, newcdev)
+		//fmt.Println("Completed formatting device(s):", newbdev, newcdev)
+		//fmt.Println("Completed formatting device(s):", newbdev, newcdev)
 		if newbdev != "" {
-			RunRegister([]string{newbdev})
+			returnErr = Register(newbdev)
 		}
 		if newcdev != "" {
-			RunRegister([]string{newcdev})
+			returnErr = Register(newcdev)
 		}
+		return
 	}
 	// out includes error from the executed command
 	already_formatted, _ := regexp.MatchString("Already a bcache device", out)
 	busy, _ := regexp.MatchString("Device or resource busy", out)
 	existing_super, _ := regexp.MatchString("non-bcache superblock", out)
 	if busy {
-		fmt.Println("Device is busy - is it already registered bcache dev or mounted?")
+		//fmt.Println("Device is busy - is it already registered bcache dev or mounted?")
+		returnErr = errors.New("Device is busy - is it already a registered bcache dev or mounted?")
 	}
 	if already_formatted || existing_super {
+		//	fmt.Println("already existing.")
 		//fmt.Println(out)
-		fmt.Printf("An existing superblock was found on this block device, which means it is either an existing bcache device or has a filesystem on it. If you REALLY want to format this device, make sure it is not registered and use the --wipe-super flag (will erase ANY superblocks and filesystems!)\n")
+		//fmt.Printf("An existing superblock was found on this block device, which means it is either an existing bcache device or has a filesystem on it. If you REALLY want to format this device, make sure it is not registered and use the --wipe-super flag (will erase ANY superblocks and filesystems!)\n")
+		returnErr = errors.New("An existing superblock was found on this block device, which means it is either an existing bcache device or has a filesystem on it. If you REALLY want to format this device, make sure it is not registered and use the --wipe-super flag (will erase ANY superblocks and filesystems!)\n")
 	}
-	if err != nil {
-		os.Exit(1)
-	}
+	//if err != nil {
+	//	os.Exit(1)
+	//}
+	//if returnErr != nil {
+	//	fmt.Println("returnErr is not nil")
+	//}
+	//fmt.Println(returnErr)
 	return
 }
 
-func (b *BcacheDevs) RunStop(device string) error {
+func Register(device string) (returnErr error) {
+	var write_path string
+	write_path = SYSFS_BCACHE_ROOT + `register`
+	all := AllDevs()
+	//for _, device := range devices {
+	//fmt.Println("write_path:", write_path, "device:", device)
+	if x, y := all.IsBDevice(device); x {
+		//fmt.Println(device, "is already registered.")
+		returnErr = errors.New(device + " is already registered as " + y.ShortName + ".")
+	} else if x, z := all.IsCDevice(device); x {
+		returnErr = errors.New(device + " is already registered as a cache device with uuid " + z.UUID + ".")
+	} else {
+		err := ioutil.WriteFile(write_path, []byte(device), 0)
+		if err != nil {
+			if CheckSysfsFor(device) {
+				//fmt.Println(device, "is already registered.")
+				returnErr = errors.New(device + " is already registered, check `bcachectl list`.")
+				return
+			}
+			//fmt.Println(err)
+		}
+		all = AllDevs()
+		if x, _ := all.IsBDevice(device); x {
+			//fmt.Println(device, "was registered as", y.ShortName+".")
+			//:
+			//name = y.ShortName
+			//return y
+		} else if x, _ := all.IsCDevice(device); x {
+			//:
+			//fmt.Println(device, "was registered as a cache device with uuid", y.UUID+".")
+			//returnDev = z.UUID
+			//return z
+		} else {
+			//fmt.Println("Couldn't register device. If the device has an associated cache device, try registering the cache device instead.")
+			returnErr = errors.New("Couldn't register device. If the device has an associated cache device, try registering the cache device instead.")
+			//os.Exit(1)
+		}
+	}
+	//}
+	//fmt.Println()
+	return
+}
+
+// Stop (unregister) a bcache device
+func (b *BcacheDevs) Stop(device string) (returnErr error) {
 	var write_path string
 	sn := strings.Split(device, "/")
 	shortName := sn[len(sn)-1]
 	regexpString := `[0-9]+`
 	matched, err := regexp.Match(regexpString, []byte(shortName))
 	if err != nil {
-		fmt.Println(err)
-		return err
+		//fmt.Println(err)
+		returnErr = err
+		return
 	}
 	if matched {
 		topDev := strings.TrimRightFunc(shortName, func(r rune) bool {
@@ -498,50 +552,57 @@ func (b *BcacheDevs) RunStop(device string) error {
 	err = ioutil.WriteFile(write_path, []byte{1}, 0)
 	if err != nil {
 		fmt.Println(err)
-		return err
+		returnErr = err
 	}
 	// wait up to 5 seconds for device to disappear, else exit without guarantees
 	sysfs_path = sysfs_path + `/bcache`
 	for i := 0; i < 5; i++ {
 		if _, err := os.Stat(sysfs_path); os.IsNotExist(err) {
-			fmt.Println(device, "bcache sysfs path now removed by kernel.")
-			return nil
+			//fmt.Println(device, "bcache sysfs path now removed by kernel.")
+			//fmt.Println(device, "bcache sysfs path now removed by kernel.")
+			return
 		}
 		time.Sleep(time.Duration(1) * time.Second)
 	}
-	fmt.Println(device, "is still formatted and may still be in sysfs")
-	return nil
+	returnErr = errors.New("Device may still be in sysfs.")
+	//fmt.Println(device, "is still formatted and may still be in sysfs")
+	return
 }
 
-func RunRegister(devices []string) {
-	var write_path string
-	write_path = SYSFS_BCACHE_ROOT + `register`
-	all := AllDevs()
-	for _, device := range devices {
-		//fmt.Println("write_path:", write_path, "device:", device)
-		if x := all.IsBCDevice(device); x {
-			fmt.Println(device, "is already registered.")
-		} else {
-			err := ioutil.WriteFile(write_path, []byte(device), 0)
-			if err != nil {
-				if CheckSysfsFor(device) {
-					fmt.Println(device, "is already registered.")
-					return
-				}
-				fmt.Println(err)
-			}
-			all = AllDevs()
-			if x, y := all.IsBDevice(device); x {
-				fmt.Println(device, "was registered as", y.ShortName+".")
-			} else if x, y := all.IsCDevice(device); x {
-				fmt.Println(device, "was registered as a cache device with uuid", y.UUID+".")
-			} else {
-				fmt.Println("Couldn't register device. If the device has an associated cache device, try registering the cache device instead.")
-				os.Exit(1)
-			}
-		}
+func (b *BcacheDevs) Unregister(device string) (returnErr error) {
+	if x, _ := b.IsBDevice(device); x {
+		b.UnregisterBacking(device)
+	} else if x, _ := b.IsCDevice(device); x {
+		b.UnregisterCache(device)
+	} else {
+		returnErr = errors.New(device + " does not appear to be a registered bcache device.")
 	}
-	fmt.Println()
+	return
+}
+
+func (b *BcacheDevs) UnregisterBacking(device string) (returnErr error) {
+	var write_path string
+	//for _, device := range devices {
+	if x, bdev := b.IsBDevice(device); x {
+		write_path = SYSFS_BLOCK_ROOT + bdev.ShortName + `/bcache/stop`
+		returnErr = ioutil.WriteFile(write_path, []byte{1}, 0)
+		//fmt.Println(device, "(backing device) was unregistered, but is still formatted.")
+		return
+	}
+	return errors.New(device + " does not appear to be a registered bcache device.")
+}
+func (b *BcacheDevs) UnregisterCache(device string) (returnErr error) {
+	var write_path string
+	if x, cdev := b.IsCDevice(device); x {
+		//Also here, only if registered
+		write_path = SYSFS_BCACHE_ROOT + cdev.UUID + `/stop`
+		returnErr = ioutil.WriteFile(write_path, []byte{1}, 0)
+		//fmt.Println(device, "(cache device) was unregistered, but is still formatted.")
+		return
+	}
+	//fmt.Println(device + " does not appear to be a registered bcache device.")
+	return errors.New(device + " does not appear to be a registered bcache device.")
+	//}
 	return
 }
 
@@ -566,28 +627,6 @@ func (b *BcacheDevs) RunList(format string, extra string) {
 	return
 }
 
-func (b *BcacheDevs) RunUnregister(devices []string) {
-	var write_path string
-	for _, device := range devices {
-		if x, bdev := b.IsBDevice(device); x {
-			//TODO only stop if it is alreayd registered
-			write_path = SYSFS_BLOCK_ROOT + bdev.ShortName + `/bcache/stop`
-			ioutil.WriteFile(write_path, []byte{1}, 0)
-			fmt.Println(device, "(backing device) was unregistered, but is still formatted.")
-			return
-		}
-		if x, cdev := b.IsCDevice(device); x {
-			//Also here, only if registered
-			write_path = SYSFS_BCACHE_ROOT + cdev.UUID + `/stop`
-			ioutil.WriteFile(write_path, []byte{1}, 0)
-			fmt.Println(device, "(cache device) was unregistered, but is still formatted.")
-			return
-		}
-		fmt.Println(device + " does not appear to be a registered bcache device.")
-	}
-	return
-}
-
 func (b *BcacheDevs) RunShow(format string, device string) (err error) {
 	if device == "" {
 		fmt.Println("I need a device to show! specify one eg.\n bcachectl show bcache0\n bcachectl show /dev/sda")
@@ -606,26 +645,32 @@ func (b *BcacheDevs) RunShow(format string, device string) (err error) {
 	return
 }
 
-func (b *BcacheDevs) RunAttach(cdev string, bdev string) {
+// Attach cache device cdev to backing dev bdev. the bdev can be either an original system device
+// or the 'bcacheX' device
+func (b *BcacheDevs) Attach(cdev string, bdev string) (returnErr error) {
 	var x bool
 	var y bcache_bdev
 	var z bcache_cdev
 	if x, y = b.IsBDevice(bdev); !x {
-		fmt.Println(bdev, "does not appear to be a formatted and registered BACKING device.")
+		//fmt.Println(bdev, "does not appear to be a formatted and registered BACKING device.")
+		returnErr = errors.New(bdev + " does not appear to be a formatted and registered BACKING device.")
 		return
 	}
 	if x, z = b.IsCDevice(cdev); !x {
-		fmt.Println(cdev, "does not appear to be a formatted and registered CACHE device.")
+		//fmt.Println(cdev, "does not appear to be a formatted and registered CACHE device.")
+		returnErr = errors.New(cdev + " does not appear to be a formatted and registered CACHE device.")
 		return
 	}
 	write_path := SYSFS_BLOCK_ROOT + y.ShortName + `/bcache/attach`
 	ioutil.WriteFile(write_path, []byte(z.UUID), 0)
 	y.FindCUUID()
 	if y.CUUID != z.UUID {
-		fmt.Println("Cache device could not be attached. Is there already a cache set associated with the device?\n")
+		//fmt.Println("Cache device could not be attached. Is there already a cache set associated with the device?\n")
+		returnErr = errors.New("Cache device could not be attached. Is there already a cache set associated with the device?\n")
 		return
 	}
-	fmt.Println("Cache device", cdev, "was attached as cache for", bdev, "("+y.ShortName+")")
+	//fmt.Println("Cache device", cdev, "was attached as cache for", bdev, "("+y.ShortName+")")
+	return
 }
 
 func (b *BcacheDevs) RunDetach(cdev string, bdev string) {

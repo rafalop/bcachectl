@@ -3,8 +3,8 @@ package cmd
 import (
 	//"errors"
 	//"fmt"
-	"github.com/spf13/cobra"
 	"bcachectl/pkg/bcache"
+	"github.com/spf13/cobra"
 	//"gopkg.in/yaml.v2"
 	//"io/ioutil"
 	//"os"
@@ -28,4 +28,3 @@ var tuneCmd = &cobra.Command{
 		}
 	},
 }
-

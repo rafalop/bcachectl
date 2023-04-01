@@ -8,24 +8,25 @@ import (
 )
 
 // var U *user.User
-var unregisterCmd = &cobra.Command{
-	Use:   "unregister {bcacheX} {bcacheY} ... {deviceN}",
-	Short: "unregister formatted bcache device(s)",
+var registerCmd = &cobra.Command{
+	Use:   "register {bcacheX} {bcacheY} ... {deviceN}",
+	Short: "register formatted bcache device(s)",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if IsAdmin {
-			all := bcache.AllDevs()
 			var overallErr error
+			var all bcache.BcacheDevs
 			for _, dev := range args[0:] {
-				err := all.Unregister(dev)
+				err := bcache.Register(dev)
 				if err != nil {
 					fmt.Println(err)
 					overallErr = err
 				} else {
+					all = bcache.AllDevs()
 					if x, y := all.IsBDevice(dev); x {
-						fmt.Println(y.BackingDev, "("+y.ShortName+") was unregistered and but is still formatted.")
+						fmt.Println(dev, "was registered as", y.ShortName, "and is available for use.")
 					} else if x, z := all.IsCDevice(dev); x {
-						fmt.Println(z.Dev, "(cache dev with uuid "+z.UUID+") was unregistered but is still formatted.")
+						fmt.Println(dev, "was registered as cache dev with uuid", z.UUID, "and is available for use.")
 					}
 				}
 			}

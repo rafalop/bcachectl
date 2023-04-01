@@ -1,11 +1,11 @@
 package cmd
 
 import (
+	"bcachectl/pkg/bcache"
 	"fmt"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 	"os"
-	"bcachectl/pkg/bcache"
 )
 
 var printTunablesCmd = &cobra.Command{

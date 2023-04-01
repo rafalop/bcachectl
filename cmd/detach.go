@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
 	"bcachectl/pkg/bcache"
+	"github.com/spf13/cobra"
 )
 
 var detachCmd = &cobra.Command{
@@ -14,4 +14,3 @@ var detachCmd = &cobra.Command{
 		all.RunDetach(args[0], args[1])
 	},
 }
-

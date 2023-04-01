@@ -1,8 +1,10 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
 	"bcachectl/pkg/bcache"
+	"fmt"
+	"github.com/spf13/cobra"
+	"os"
 )
 
 var attachCmd = &cobra.Command{
@@ -12,7 +14,12 @@ var attachCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		all := bcache.AllDevs()
-		all.RunAttach(args[0], args[1])
+		err := all.Attach(args[0], args[1])
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		} else {
+			fmt.Println("Cache device", args[1], "was attached as cache for", args[0]+".")
+		}
 	},
 }
-

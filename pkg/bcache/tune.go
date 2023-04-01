@@ -18,7 +18,8 @@ var ALLOWED_TUNABLES = []string{
 	`writeback_delay`,
 	`writeback_rate`,
 }
-//todo just have all tunables, and set path directly if it's a cache tunable
+
+// todo just have all tunables, and set path directly if it's a cache tunable
 var CACHE_TUNABLES = []string{
 	`congested_write_threshold_us`,
 	`congested_read_threshold_us`,
@@ -29,6 +30,7 @@ sequential_cutoff:<INT>  threshold for a sequential IO to bypass the cache, set 
 readahead:<INT>  size of readahead that should be performed, set using byte value, default 0
 writeback_percent:<INT> bcache tries to keep this amount of percentage of dirty data for writeback mode, a setting of 0 would flush the cache
 cache_mode:<STR> cache mode to use, possible values writethrough, writeback, writearound, none`
+
 //Example config, use cache set uuid to override 'all' or default config
 //all:
 //  sequential_cutoff: 16384
