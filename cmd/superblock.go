@@ -13,6 +13,6 @@ var superCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		//allDevs()
-		fmt.Println(bcache.GetSuperBlock(args[0]))
+		fmt.Printf(bcache.GetSuperBlock(args[0]))
 	},
 }

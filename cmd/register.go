@@ -7,7 +7,6 @@ import (
 	"os"
 )
 
-// var U *user.User
 var registerCmd = &cobra.Command{
 	Use:   "register {bcacheX} {bcacheY} ... {deviceN}",
 	Short: "register formatted bcache device(s)",
@@ -15,14 +14,18 @@ var registerCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if IsAdmin {
 			var overallErr error
-			var all bcache.BcacheDevs
+			var all *bcache.BcacheDevs
 			for _, dev := range args[0:] {
 				err := bcache.Register(dev)
 				if err != nil {
 					fmt.Println(err)
 					overallErr = err
 				} else {
-					all = bcache.AllDevs()
+					all, err = bcache.AllDevs()
+					if err != nil {
+						fmt.Println(err)
+						os.Exit(1)
+					}
 					if x, y := all.IsBDevice(dev); x {
 						fmt.Println(dev, "was registered as", y.ShortName, "and is available for use.")
 					} else if x, z := all.IsCDevice(dev); x {

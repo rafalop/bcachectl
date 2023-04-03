@@ -13,8 +13,12 @@ var addCmd = &cobra.Command{
 	Long:  "Add/Format/Create one or more bcache devices, potentially auto attaching a cache device to a backing device if both are specified together (-B) and (-C). This is a wrapper for `make-bcache` and will use the same arguments, eg. -B {backing dev} -C {cache dev}",
 	Run: func(cmd *cobra.Command, args []string) {
 		if IsAdmin && (NewBDev != "" || NewCDev != "") {
-			allDevs := bcache.AllDevs()
-			err := allDevs.Create(NewBDev, NewCDev, Wipe, WriteBack)
+			all, err := bcache.AllDevs()
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			err = all.Create(NewBDev, NewCDev, Wipe, WriteBack)
 			if err == nil {
 				fmt.Println("Completed formatting device(s):", NewBDev, NewCDev)
 			} else {

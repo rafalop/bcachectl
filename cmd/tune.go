@@ -1,15 +1,10 @@
 package cmd
 
 import (
-	//"errors"
-	//"fmt"
+	"fmt"
 	"bcachectl/pkg/bcache"
 	"github.com/spf13/cobra"
-	//"gopkg.in/yaml.v2"
-	//"io/ioutil"
-	//"os"
-	//"strconv"
-	//"strings"
+	"os"
 )
 
 var tuneCmd = &cobra.Command{
@@ -19,7 +14,11 @@ var tuneCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		if IsAdmin {
-			all := bcache.AllDevs()
+			all, err := bcache.AllDevs()
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
 			if args[0] == "from-file" {
 				all.TuneFromFile(args[1])
 			} else {

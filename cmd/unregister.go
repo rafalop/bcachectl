@@ -7,14 +7,17 @@ import (
 	"os"
 )
 
-// var U *user.User
 var unregisterCmd = &cobra.Command{
 	Use:   "unregister {bcacheX} {bcacheY} ... {deviceN}",
 	Short: "unregister formatted bcache device(s)",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if IsAdmin {
-			all := bcache.AllDevs()
+			all, err := bcache.AllDevs()
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
 			var overallErr error
 			for _, dev := range args[0:] {
 				err := all.Unregister(dev)

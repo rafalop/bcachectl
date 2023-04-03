@@ -12,12 +12,16 @@ var printTunablesCmd = &cobra.Command{
 	Use:   "print-tunables",
 	Short: "print existing listable bcache device tunables in yaml format for generating a config file",
 	Run: func(cmd *cobra.Command, args []string) {
-		all := bcache.AllDevs()
+		all, err := bcache.AllDevs()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		PrintTunables(all)
 	},
 }
 
-func PrintTunables(b bcache.BcacheDevs) {
+func PrintTunables(b *bcache.BcacheDevs) {
 	output := b.GetTunables()
 	if OutConfigFile != "" {
 		out_yaml, _ := yaml.Marshal(&output)

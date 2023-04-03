@@ -95,7 +95,7 @@ func humanToBytes(s string) (bytesVal string) {
 
 func (b *BcacheDevs) TuneFromFile(configFile string) {
 	parse(configFile)
-	for _, bdev := range b.bdevs {
+	for _, bdev := range b.Bdevs {
 		if Config[bdev.BUUID] != nil {
 			for tunable, val := range Config[bdev.BUUID] {
 				b.RunTune(bdev.BcacheDev, tunable+`:`+val)
@@ -110,7 +110,7 @@ func (b *BcacheDevs) TuneFromFile(configFile string) {
 
 func (b *BcacheDevs) RunTune(device string, tunable string) {
 	var x bool
-	var y bcache_bdev
+	var y Bcache_bdev
 	if device == "" {
 		fmt.Println("I need a device to work on, eg.\n bcachectl tune bcache0 cache_mode:writeback\n")
 		return
@@ -139,18 +139,18 @@ func (b *BcacheDevs) RunTune(device string, tunable string) {
 	//y.PrintFullInfo("standard")
 }
 
-func (b *bcache_bdev) ChangeTunable(tunable string, val string) error {
+func (b *Bcache_bdev) ChangeTunable(tunable string, val string) error {
 	write_path := SYSFS_BLOCK_ROOT + b.ShortName + `/bcache/`
 	for _, t := range ALLOWED_TUNABLES {
 		if tunable == t {
 			write_path = write_path + tunable
-			b.makeMap(OUTPUT_VALUES)
+			b.MakeParams(PARAMS)
 		}
 	}
 	for _, t := range CACHE_TUNABLES {
 		if tunable == t {
 			write_path = write_path + `/cache/` + tunable
-			b.makeMap(OUTPUT_VALUES)
+			b.MakeParams(PARAMS)
 		}
 	}
 	if _, err := os.Stat(write_path); err != nil {
@@ -171,7 +171,7 @@ func (b *bcache_bdev) ChangeTunable(tunable string, val string) error {
 // return map of current tunables
 func (b *BcacheDevs) GetTunables() map[string]driveConfig {
 	output := make(map[string]driveConfig)
-	for _, bdev := range b.bdevs {
+	for _, bdev := range b.Bdevs {
 		//output[bdev.CUUID] = make(driveConfig)
 		output[bdev.BUUID] = make(driveConfig)
 		for _, tunable := range ALLOWED_TUNABLES {
