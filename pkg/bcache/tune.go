@@ -144,13 +144,13 @@ func (b *Bcache_bdev) ChangeTunable(tunable string, val string) error {
 	for _, t := range ALLOWED_TUNABLES {
 		if tunable == t {
 			write_path = write_path + tunable
-			b.MakeParams(PARAMS)
+			b.MakeParameters(PARAMETERS)
 		}
 	}
 	for _, t := range CACHE_TUNABLES {
 		if tunable == t {
 			write_path = write_path + `/cache/` + tunable
-			b.MakeParams(PARAMS)
+			b.MakeParameters(PARAMETERS)
 		}
 	}
 	if _, err := os.Stat(write_path); err != nil {

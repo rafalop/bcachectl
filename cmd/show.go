@@ -52,7 +52,7 @@ func printFullInfo(b *bcache.Bcache_bdev, format string) {
 			ShortName:    b.ShortName,
 			BUUID:        b.BUUID,
 			CUUID:        b.CUUID,
-			Parameters: b.Params,
+			Parameters: b.Parameters,
 		}
 		json_out, _ := json.Marshal(all_out)
 		fmt.Println(string(json_out))
@@ -60,7 +60,7 @@ func printFullInfo(b *bcache.Bcache_bdev, format string) {
 		fmt.Printf("%-30s%s\n", "ShortName:", b.ShortName)
 		fmt.Printf("%-30s%s\n", "Bcache Dev UUID:", b.BUUID)
 		fmt.Printf("%-30s%s\n", "Cache Set UUID:", b.CUUID)
-		for k, v := range b.Params {
+		for k, v := range b.Parameters {
 			if v != "" {
 				fmt.Printf("%-30s%s\n", k+`:`, v)
 			} else {

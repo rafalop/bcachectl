@@ -24,7 +24,7 @@ const (
 )
 
 // stats/settings of interest for each bcache device
-var PARAMS = []string{
+var PARAMETERS = []string{
 	`cache_mode`,
 	`state`,
 	`stats_total/bypassed`,
@@ -53,7 +53,7 @@ type Bcache_bdev struct {
 	CUUID      string   `json:"CacheSetUUID"`
 	Slaves     []string `json:"Slaves"`
 	// This map will contain extended info about bcache device, eg. stats, tunables etc
-	Params	map[string]interface{}
+	Parameters	map[string]interface{}
 }
 
 // A bcache cache device
@@ -270,7 +270,7 @@ func (b *BcacheDevs) FindBDevs() (err error) {
 			b.FindCUUID()
 			b.BcacheDev = bcache_device
 			b.FindBUUID()
-			b.MakeParams(PARAMS)
+			b.MakeParameters(PARAMETERS)
 			c <- b
 		}(j, basedir)
 	}
@@ -282,15 +282,15 @@ func (b *BcacheDevs) FindBDevs() (err error) {
 
 
 // Make the params map and gather the various bcache settings/stats
-func (b *Bcache_bdev) MakeParams(vals []string) {
+func (b *Bcache_bdev) MakeParameters(vals []string) {
 	//If val is in subdir
-	b.Params = make(map[string]interface{})
+	b.Parameters = make(map[string]interface{})
 	for _, val := range vals {
 		if strings.Contains(val, "/") {
 			val_a := strings.Split(val, "/")
-			b.Params[string(val_a[len(val_a)-1])] = b.Val(val)
+			b.Parameters[string(val_a[len(val_a)-1])] = b.Val(val)
 		} else {
-			b.Params[val] = b.Val(val)
+			b.Parameters[val] = b.Val(val)
 		}
 	}
 	return

@@ -65,12 +65,12 @@ func printTable(b *bcache.BcacheDevs, extra_vals []string) {
 		fmt.Printf("\n")
 		for _, bdev := range b.Bdevs {
 			// we just add these to params map, for ease of printing
-			bdev.Params["BcacheDev"] = bdev.BcacheDev
-			bdev.Params["BackingDev"] = bdev.BackingDev
-			bdev.Params["CacheDev"] = bdev.CacheDev
+			bdev.Parameters["BcacheDev"] = bdev.BcacheDev
+			bdev.Parameters["BackingDev"] = bdev.BackingDev
+			bdev.Parameters["CacheDev"] = bdev.CacheDev
 			for _, j := range columns {
-				if bdev.Params[j] != nil {
-					printColumn(bdev.Params[j].(string))
+				if bdev.Parameters[j] != nil {
+					printColumn(bdev.Parameters[j].(string))
 				}
 			}
 			fmt.Printf("\n")
