@@ -53,7 +53,7 @@ type Bcache_bdev struct {
 	CUUID      string   `json:"CacheSetUUID"`
 	Slaves     []string `json:"Slaves"`
 	// This map will contain extended info about bcache device, eg. stats, tunables etc
-	Parameters	map[string]interface{}
+	Parameters map[string]interface{}
 }
 
 // A bcache cache device
@@ -280,7 +280,6 @@ func (b *BcacheDevs) FindBDevs() (err error) {
 	return
 }
 
-
 // Make the params map and gather the various bcache settings/stats
 func (b *Bcache_bdev) MakeParameters(vals []string) {
 	//If val is in subdir
@@ -487,7 +486,6 @@ func (b *BcacheDevs) UnregisterCache(device string) (returnErr error) {
 	}
 	return
 }
-
 
 // Attach cache device cdev to backing dev bdev. the bdev can be either an original system device
 // or a registered 'bcacheX' device

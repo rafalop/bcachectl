@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"bcachectl/pkg/bcache"
-	"github.com/spf13/cobra"
 	"encoding/json"
 	"fmt"
+	"github.com/spf13/cobra"
 	"os"
 )
 
@@ -44,14 +44,14 @@ func show(b *bcache.BcacheDevs, format string, device string) (err error) {
 func printFullInfo(b *bcache.Bcache_bdev, format string) {
 	if format == "json" {
 		all_out := struct {
-			ShortName    string
-			BUUID        string
-			CUUID        string
+			ShortName  string
+			BUUID      string
+			CUUID      string
 			Parameters map[string]interface{}
 		}{
-			ShortName:    b.ShortName,
-			BUUID:        b.BUUID,
-			CUUID:        b.CUUID,
+			ShortName:  b.ShortName,
+			BUUID:      b.BUUID,
+			CUUID:      b.CUUID,
 			Parameters: b.Parameters,
 		}
 		json_out, _ := json.Marshal(all_out)
@@ -70,4 +70,3 @@ func printFullInfo(b *bcache.Bcache_bdev, format string) {
 	}
 	return
 }
-

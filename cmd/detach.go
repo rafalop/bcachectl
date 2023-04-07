@@ -2,9 +2,9 @@ package cmd
 
 import (
 	"bcachectl/pkg/bcache"
+	"fmt"
 	"github.com/spf13/cobra"
 	"os"
-	"fmt"
 )
 
 var detachCmd = &cobra.Command{
@@ -23,14 +23,14 @@ var detachCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		if b.CacheDev == bcache.NONE_ATTACHED {
-			fmt.Println("device " + args[1] +" has no cache attached, nothing to do.")
+			fmt.Println("device " + args[1] + " has no cache attached, nothing to do.")
 		} else {
 			err := all.Detach(args[0], args[1])
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
 			} else {
-				fmt.Println("Detached cache dev", args[0], "from", b.BackingDev +" ("+b.ShortName+")")
+				fmt.Println("Detached cache dev", args[0], "from", b.BackingDev+" ("+b.ShortName+")")
 			}
 		}
 	},

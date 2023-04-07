@@ -24,7 +24,7 @@ var attachCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		if b.CacheDev != bcache.NONE_ATTACHED {
-			fmt.Println(args[1] +" (" +b.ShortName+") already has cache attached ("+b.CacheDev+")")
+			fmt.Println(args[1] + " (" + b.ShortName + ") already has cache attached (" + b.CacheDev + ")")
 		} else {
 			err := all.Attach(args[0], args[1])
 			if err != nil {

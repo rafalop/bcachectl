@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"bcachectl/pkg/bcache"
+	"encoding/json"
+	"fmt"
 	"github.com/spf13/cobra"
 	"os"
-	"fmt"
 	"strings"
-	"encoding/json"
 )
 
 var listCmd = &cobra.Command{
@@ -93,4 +93,3 @@ func printTable(b *bcache.BcacheDevs, extra_vals []string) {
 func printColumn(val string) {
 	fmt.Printf("%-18s", val)
 }
-
