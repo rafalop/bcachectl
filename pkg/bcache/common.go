@@ -300,7 +300,7 @@ func (b *BcacheDevs) IsBDevice(dev string) (ret bool, ret2 Bcache_bdev) {
 func (b *BcacheDevs) IsCDevice(dev string) (ret bool, ret2 Bcache_cdev) {
 	ret = false
 	for _, cdev := range b.Cdevs {
-		if cdev.Dev == dev {
+		if cdev.Dev == dev || cdev.UUID == dev{
 			ret = true
 			ret2 = cdev
 		}
@@ -372,6 +372,7 @@ func (b *BcacheDevs) Create(newbdev string, newcdev string, wipe bool, writeback
 	return
 }
 
+// Try to register a bcache device, do nothing if already registered
 func Register(device string) (returnErr error) {
 	var write_path string
 	write_path = SYSFS_BCACHE_ROOT + `register`
@@ -379,28 +380,28 @@ func Register(device string) (returnErr error) {
 	if returnErr != nil {
 		return
 	}
-	if x, y := all.IsBDevice(device); x {
-		returnErr = errors.New(device + " is already registered as " + y.ShortName + ".")
-	} else if x, z := all.IsCDevice(device); x {
-		returnErr = errors.New(device + " is already registered as a cache device with uuid " + z.UUID + ".")
-	} else {
-		err := ioutil.WriteFile(write_path, []byte(device), 0)
-		if err != nil {
-			if CheckSysfsFor(device) {
-				returnErr = errors.New(device + " is already registered, check `bcachectl list`.")
-				return
-			}
-		}
-		all, returnErr = AllDevs()
-		if returnErr != nil {
-			return
-		}
-		// todo fix below, pretty ugly
-		isBdev, _ := all.IsBDevice(device)
-		isCdev, _ := all.IsCDevice(device)
-		if !isBdev && !isCdev {
-			returnErr = errors.New("Couldn't register device. Is it a formatted bcache device?")
-		}
+	//registered := false
+	if x, _ := all.IsBDevice(device); x {
+		return
+	}
+	if x, _ := all.IsCDevice(device); x {
+		return
+	}
+	if CheckSysfsFor(device) {
+		return
+	}
+	returnErr = ioutil.WriteFile(write_path, []byte(device), 0)
+	if returnErr != nil {
+		return
+	}
+	all, returnErr = AllDevs()
+	if returnErr != nil {
+		return
+	}
+	isBdev, _ := all.IsBDevice(device)
+	isCdev, _ := all.IsCDevice(device)
+	if !isBdev && !isCdev {
+		returnErr = errors.New("Couldn't register device. Is it a formatted bcache device?")
 	}
 	return
 }
