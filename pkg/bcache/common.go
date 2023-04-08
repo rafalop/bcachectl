@@ -1,12 +1,10 @@
 package bcache
 
 import (
-	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
 	"regexp"
-	//"os/user"
 	"errors"
 	"io/ioutil"
 	"path/filepath"
@@ -15,7 +13,7 @@ import (
 	"unicode"
 )
 
-// This seems to be flaky
+// devices in /dev/bcache/by-uuid seems to be flaky
 // const BDEVS_DIR = `/dev/bcache/by-uuid/`
 const SYSFS_BCACHE_ROOT = `/sys/fs/bcache/`
 const SYSFS_BLOCK_ROOT = `/sys/block/`
@@ -72,15 +70,9 @@ func AllDevs() (all *BcacheDevs, err error) {
 	all = new(BcacheDevs)
 	if err = all.FindBDevs(); err != nil {
 		return
-		//return all, err
-		//fmt.Println("Error:", err)
-		//os.Exit(1)
 	}
 	if err = all.FindCDevs(); err != nil {
 		return
-		//return all, err
-		//fmt.Println("Error:", err)
-		//os.Exit(1)
 	}
 	return all, nil
 }
@@ -97,7 +89,6 @@ func RunSystemCommand(cmd string) (out string, err error) {
 
 // read raw value from sysfs
 func readVal(path string) (val string) {
-	//fmt.Println("reading val from ", path)
 	data, err := ioutil.ReadFile(path)
 	if err != nil || string(data) == "\n" {
 		val = ""
@@ -132,7 +123,6 @@ func (b *Bcache_bdev) Val(name string) (val string) {
 		}
 	} else {
 		val = rawval_s
-		//fmt.Println("setting val", val, "for", name)
 	}
 	return
 }
@@ -145,7 +135,6 @@ func getSysDevFromID(dev_id string) (path string) {
 // Find backing and cache devs for a bcache set
 func (b *Bcache_bdev) FindBackingAndCacheDevs() {
 	search_path := SYSFS_BLOCK_ROOT + b.ShortName + `/slaves/`
-	//fmt.Println(b.Slaves)
 	for _, slave := range b.Slaves {
 		if _, registerCheck := os.Stat(search_path + slave + `/bcache`); os.IsNotExist(registerCheck) {
 			b.BackingDev = "UNREGISTERED"
@@ -341,16 +330,20 @@ func (b *BcacheDevs) Create(newbdev string, newcdev string, wipe bool, writeback
 		bcache_cmd = bcache_cmd + ` -C ` + newcdev
 		if wipe {
 			b.Stop(newcdev)
-			Wipe(newcdev)
-			fmt.Println(out)
+			_, returnErr = Wipe(newcdev)
+			if returnErr != nil {
+				return
+			}
 		}
 	}
 	if newbdev != "" {
 		bcache_cmd = bcache_cmd + ` -B ` + newbdev
 		if wipe {
 			b.Stop(newbdev)
-			Wipe(newbdev)
-			fmt.Println(out)
+			_, returnErr = Wipe(newbdev)
+			if returnErr != nil {
+				return
+			}
 		}
 	}
 	if writeback {
@@ -371,7 +364,6 @@ func (b *BcacheDevs) Create(newbdev string, newcdev string, wipe bool, writeback
 	busy, _ := regexp.MatchString("Device or resource busy", out)
 	existing_super, _ := regexp.MatchString("non-bcache superblock", out)
 	if busy {
-		//fmt.Println("Device is busy - is it already registered bcache dev or mounted?")
 		returnErr = errors.New("Device is busy - is it already a registered bcache dev or mounted?")
 	}
 	if already_formatted || existing_super {
@@ -441,8 +433,8 @@ func (b *BcacheDevs) Stop(device string) (returnErr error) {
 
 	err = ioutil.WriteFile(write_path, []byte{1}, 0)
 	if err != nil {
-		fmt.Println(err)
 		returnErr = err
+		return
 	}
 	// wait up to 5 seconds for device to disappear, else exit without guarantees
 	sysfs_path = sysfs_path + `/bcache`
@@ -452,7 +444,7 @@ func (b *BcacheDevs) Stop(device string) (returnErr error) {
 		}
 		time.Sleep(time.Duration(1) * time.Second)
 	}
-	return errors.New("Device may still be in sysfs.")
+	return errors.New("Device was stopped but it may still be in sysfs.")
 }
 
 func (b *BcacheDevs) Unregister(device string) (returnErr error) {
@@ -544,12 +536,10 @@ func CheckSysfsFor(device string) bool {
 	} else {
 		sysfsPath = SYSFS_BLOCK_ROOT + shortName + `/bcache`
 	}
-	//fmt.Println("searching for path:" + sysfsPath)
 
 	// Check for sysfs path a couple of times (udev is meant to auto register)
 	for i := 0; i < 2; i++ {
 		if _, err := os.Stat(sysfsPath); !os.IsNotExist(err) {
-			//fmt.Println("Found path: " + sysfsPath)
 			return true
 		}
 		time.Sleep(time.Duration(1) * time.Second)
@@ -557,10 +547,10 @@ func CheckSysfsFor(device string) bool {
 	return false
 }
 
-func CheckSysFS() {
+// Check sysfs that bcache kernel module is loaded
+func BcacheLoaded() bool {
 	if _, err := os.Stat(SYSFS_BCACHE_ROOT); os.IsNotExist(err) {
-		fmt.Println("Bcache is not in sysfs yet (" + SYSFS_BCACHE_ROOT + "), I can't do anything!")
-		fmt.Printf("Check that the bcache kernel module is loaded:\n\nlsmod|grep bcache\nmodprobe bcache\n\n")
-		os.Exit(1)
+		return false
 	}
+	return true
 }
