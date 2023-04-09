@@ -33,8 +33,7 @@ var Wipe bool
 var NewBDev string
 var NewCDev string
 var WriteBack bool
-
-// var ApplyToAll bool
+var ApplyToAll bool
 var OutConfigFile string
 
 var rootCmd = &cobra.Command{
@@ -60,8 +59,8 @@ func Init() {
 	rootCmd.AddCommand(tuneCmd)
 	rootCmd.AddCommand(printTunablesCmd)
 	printTunablesCmd.Flags().StringVarP(&OutConfigFile, "outfile", "o", "", "Write out tunables file to this file")
-	//rootCmd.AddCommand(flushCmd)
-	//flushCmd.Flags().BoolVarP(&ApplyToAll, "all", "a", false, "Flush all bcache devices")
+	rootCmd.AddCommand(flushCmd)
+	flushCmd.Flags().BoolVarP(&ApplyToAll, "all", "a", false, "Flush all bcache devices")
 	rootCmd.AddCommand(attachCmd)
 	rootCmd.AddCommand(superCmd)
 	rootCmd.AddCommand(detachCmd)

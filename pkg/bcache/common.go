@@ -555,3 +555,64 @@ func BcacheLoaded() bool {
 	}
 	return true
 }
+
+
+// Flush a single device
+func (b *Bcache_bdev) FlushCache() error{
+	var err error
+	// First check if current mode is writeback
+	r := b.Val(`cache_mode`)
+	if r != "writeback" {
+		// nothing to flush
+		return nil
+		//fmt.Println(b.ShortName, "is not using writeback mode, nothing to flush")
+		//return
+	}
+
+	// Set writeback_delay to something short
+	write_delay := b.Val(`writeback_delay`)
+	err = b.ChangeTunable(`writeback_delay`, `1`)
+	if err != nil {
+		return errors.New("error setting writeback_delay:" + err.Error())
+		//fmt.Println("error setting writeback_delay:", err)
+		//return
+	}
+
+	// To achieve flush, we set cachemode to writethrough until state is clean
+	err = b.ChangeTunable(`cache_mode`, `writethrough`)
+	if err != nil {
+		return errors.New("error setting writethrough for flush:"+ err.Error())
+		//fmt.Println("error setting cache_mode:", err)
+		//return
+	}
+	tries := 0
+	for {
+		if tries == 30 {
+			return errors.New("flush did not complete after 30 seconds")
+			//break
+		}
+		state := b.Val(`state`)
+		if state == `clean` {
+			break
+		} else {
+			time.Sleep(1 * time.Second)
+		}
+		tries += 1
+	}
+	return nil
+	//fmt.Println("cache was flushed successfully for", b.ShortName, "(device reached clean state)")
+
+	// If we entered this function, cache mode must have been writeback, we change back
+	err = b.ChangeTunable(`cache_mode`, `writeback`)
+	if err != nil {
+		//fmt.Println("unable to set mode back to writeback:", err)
+		return errors.New("unable to set mode back to writeback after flush:" + err.Error())
+	}
+	// Set original writeback delay
+	err = b.ChangeTunable(`writeback_delay`, write_delay)
+	if err != nil {
+		//fmt.Println("unable to set writeback_delay back to original value!\n")
+		return errors.New("unable to set writeback_delay back to original value after flush")
+	}
+	return nil
+}
