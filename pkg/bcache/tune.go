@@ -20,7 +20,6 @@ const (
 
 var ALLOWED_TUNABLES = []string{
 	`sequential_cutoff`,
-	`readahead`,
 	`cache_mode`,
 	`writeback_percent`,
 	`writeback_delay`,
@@ -31,6 +30,9 @@ var ALLOWED_TUNABLES = []string{
 var CACHE_TUNABLES = []string{
 	`congested_write_threshold_us`,
 	`congested_read_threshold_us`,
+}
+var QUEUE_TUNABLES = []string {
+	`read_ahead_kb`,
 }
 
 var ALLOWED_TUNABLES_DESCRIPTIONS = `
@@ -117,35 +119,43 @@ func (b *BcacheDevs) TuneFromFile(configFile string) (err error) {
 	for _, bdev := range b.Bdevs {
 		if cfg[bdev.BUUID] != nil {
 			for tunable, val := range cfg[bdev.BUUID] {
-				b.Tune(bdev.BcacheDev, tunable+`:`+val)
+				err = bdev.Tune(tunable+`:`+val)
+				if err != nil {
+					return
+				}
 			}
 		} else {
 			for tunable, val := range cfg["all"] {
-				b.Tune(bdev.BcacheDev, tunable+`:`+val)
+				err = bdev.Tune(tunable+`:`+val)
+				if err != nil {
+					return
+				}
 			}
 		}
 	}
 	return
 }
 
-func (b *BcacheDevs) Tune(device string, tunable string) error {
-	var x bool
-	var y Bcache_bdev
-	if x, y = b.IsBDevice(device); x == false {
-		return errors.New("invalid bcache device " + device)
-	}
+//func (b *BcacheDevs) Tune(device string, tunable string) error {
+func (b *Bcache_bdev) Tune(tunable string) error {
+	//var x bool
+	//var y Bcache_bdev
+	//if x, y = b.IsBDevice(device); x == false {
+	//	return errors.New("invalid bcache device " + device)
+	//}
 	tunable_a := strings.Split(tunable, ":")
 	if len(tunable_a[0]) == 0 || len(tunable_a[1]) == 0 {
-		return errors.New("tunable string not properly formatted")
+		return errors.New("tunable string not properly formatted: "+ tunable)
 	}
 
 	var valToSet string
-	if tunable_a[0] == "sequential_cutoff" || tunable_a[0] == "readahead" {
+	if tunable_a[0] == "sequential_cutoff" || tunable_a[0] == "readahead" ||
+		tunable_a[0] == "writeback_rate" {
 		valToSet = HumanToBytes(tunable_a[1])
 	} else {
 		valToSet = tunable_a[1]
 	}
-	return y.ChangeTunable(tunable_a[0], valToSet)
+	return b.ChangeTunable(tunable_a[0], valToSet)
 }
 
 func contains(a []string, s string) bool {
