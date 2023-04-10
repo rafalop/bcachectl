@@ -10,37 +10,11 @@ import (
 	"strings"
 )
 
-const (
-	TUNE_OK                 = 0
-	TUNE_BAD_PATH           = 1
-	TUNE_BAD_TUNABLE_STRING = 2
-	TUNE_IO_ERROR           = 3
-	TUNE_BAD_DEVICE         = 4
-)
-
-var ALLOWED_TUNABLES = []string{
-	`sequential_cutoff`,
-	`cache_mode`,
-	`writeback_percent`,
-	`writeback_delay`,
-	`writeback_rate`,
-}
-
-// todo just have all tunables, and set path directly if it's a cache tunable
-var CACHE_TUNABLES = []string{
-	`congested_write_threshold_us`,
-	`congested_read_threshold_us`,
-}
-var QUEUE_TUNABLES = []string {
-	`read_ahead_kb`,
-}
-
-var ALLOWED_TUNABLES_DESCRIPTIONS = `
+var TUNABLE_DESCRIPTIONS = `
 sequential_cutoff:<INT>  threshold for a sequential IO to bypass the cache, set using byte value, default 4.0M (4194304)"
 readahead:<INT>  size of readahead that should be performed, set using byte value, default 0
 writeback_percent:<INT> bcache tries to keep this amount of percentage of dirty data for writeback mode, a setting of 0 would flush the cache
 cache_mode:<STR> cache mode to use, possible values writethrough, writeback, writearound, none`
-var ALLOWED_TUNABLES_ERRORSTRING = fmt.Sprintf("\nAllowed tunables are: %s %s", ALLOWED_TUNABLES, CACHE_TUNABLES)
 
 type DriveConfig map[string]string
 
@@ -119,14 +93,14 @@ func (b *BcacheDevs) TuneFromFile(configFile string) (err error) {
 	for _, bdev := range b.Bdevs {
 		if cfg[bdev.BUUID] != nil {
 			for tunable, val := range cfg[bdev.BUUID] {
-				err = bdev.Tune(tunable+`:`+val)
+				err = bdev.Tune(tunable + `:` + val)
 				if err != nil {
 					return
 				}
 			}
 		} else {
 			for tunable, val := range cfg["all"] {
-				err = bdev.Tune(tunable+`:`+val)
+				err = bdev.Tune(tunable + `:` + val)
 				if err != nil {
 					return
 				}
@@ -136,16 +110,10 @@ func (b *BcacheDevs) TuneFromFile(configFile string) (err error) {
 	return
 }
 
-//func (b *BcacheDevs) Tune(device string, tunable string) error {
 func (b *Bcache_bdev) Tune(tunable string) error {
-	//var x bool
-	//var y Bcache_bdev
-	//if x, y = b.IsBDevice(device); x == false {
-	//	return errors.New("invalid bcache device " + device)
-	//}
 	tunable_a := strings.Split(tunable, ":")
 	if len(tunable_a[0]) == 0 || len(tunable_a[1]) == 0 {
-		return errors.New("tunable string not properly formatted: "+ tunable)
+		return errors.New("tunable string not properly formatted: " + tunable)
 	}
 
 	var valToSet string
@@ -155,7 +123,8 @@ func (b *Bcache_bdev) Tune(tunable string) error {
 	} else {
 		valToSet = tunable_a[1]
 	}
-	return b.ChangeTunable(tunable_a[0], valToSet)
+	p := TunablePath(tunable_a[0])
+	return b.ChangeTunable(p, valToSet)
 }
 
 func contains(a []string, s string) bool {
@@ -167,16 +136,32 @@ func contains(a []string, s string) bool {
 	return false
 }
 
+// return relative tunable path from bcache device sysfs
+func TunablePath(tunable string) (path string) {
+	for _, path = range TUNABLES {
+		if strings.Contains(path, tunable) {
+			return
+		}
+	}
+	return tunable
+}
+
+// return basename of the tunable with relative path stripped
+func BaseName(tunable string) (basename string) {
+	tunable_a := strings.Split(tunable, "/")
+	return tunable_a[len(tunable_a)-1]
+}
+
+// tunable parameter is expected to be a relative path from /bcache/ dir of
+// bcache device sysfs (as found in TUNABLES global array)
 func (b *Bcache_bdev) ChangeTunable(tunable string, val string) error {
 	write_path := SYSFS_BLOCK_ROOT + b.ShortName + `/bcache/`
-	if contains(ALLOWED_TUNABLES, tunable) {
+	if contains(TUNABLES, tunable) {
 		write_path = write_path + tunable
-	} else if contains(CACHE_TUNABLES, tunable) {
-		write_path = write_path + `/cache/` + tunable
 	} else {
 		return errors.New("tunable not in allowed list: " + tunable)
 	}
-	b.MakeParameters(PARAMETERS)
+	b.MakeParameters(TUNABLES)
 	if _, err := os.Stat(write_path); err != nil {
 		return errors.New("tunable path does not exist: " + write_path)
 	}
@@ -188,8 +173,8 @@ func (b *BcacheDevs) GetTunables() map[string]DriveConfig {
 	output := make(map[string]DriveConfig)
 	for _, bdev := range b.Bdevs {
 		output[bdev.BUUID] = make(DriveConfig)
-		for _, tunable := range ALLOWED_TUNABLES {
-			output[bdev.BUUID][tunable] = bdev.Val(tunable)
+		for _, tunable := range TUNABLES {
+			output[bdev.BUUID][BaseName(tunable)] = bdev.Val(tunable)
 		}
 	}
 	return output

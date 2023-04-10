@@ -49,6 +49,8 @@ func printFullInfo(b *bcache.Bcache_bdev, format string) {
 		fmt.Printf("%-30s%s\n", "ShortName:", b.ShortName)
 		fmt.Printf("%-30s%s\n", "Bcache Dev UUID:", b.BUUID)
 		fmt.Printf("%-30s%s\n", "Cache Set UUID:", b.CUUID)
+		fmt.Printf("%-30s%s\n", "Backing device:", b.BackingDev)
+		fmt.Printf("%-30s%s\n", "Cache device:", b.CacheDev)
 		for k, v := range b.Parameters {
 			if v != "" {
 				fmt.Printf("%-30s%s\n", k+`:`, v)

@@ -1,13 +1,13 @@
 package bcache
 
 import (
+	"errors"
 	"io/fs"
+	"io/ioutil"
 	"os"
 	"os/exec"
-	"regexp"
-	"errors"
-	"io/ioutil"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -21,9 +21,7 @@ const (
 	NONE_ATTACHED = "no cache"
 )
 
-// stats/settings of interest for each bcache device
-var PARAMETERS = []string{
-	`cache_mode`,
+var STATS = []string{
 	`state`,
 	`stats_total/bypassed`,
 	`stats_total/cache_hits`,
@@ -31,15 +29,21 @@ var PARAMETERS = []string{
 	`stats_total/cache_hit_ratio`,
 	`stats_total/cache_bypass_hits`,
 	`stats_total/cache_bypass_misses`,
-	`cache/cache0/cache_replacement_policy`,
-	`congested_write_threshold_us`,
-	`congested_read_threshold_us`,
 	`cache/congested`,
-	`sequential_cutoff`,
-	`readahead_cache_policy`,
 	`writeback_percent`,
 	`dirty_data`,
 }
+
+var TUNABLES = []string{
+	`cache_mode`,
+	`cache/cache0/cache_replacement_policy`,
+	`cache/congested_write_threshold_us`,
+	`cache/congested_read_threshold_us`,
+	`readahead_cache_policy`,
+	`sequential_cutoff`,
+}
+
+var PARAMETERS = append(STATS, TUNABLES...)
 
 // A bcache (backing) device
 type Bcache_bdev struct {
@@ -49,7 +53,7 @@ type Bcache_bdev struct {
 	CacheDev   string   `json:"CacheDev"`
 	BUUID      string   `json:"BcacheDevUUID"`
 	CUUID      string   `json:"CacheSetUUID"`
-	Slaves     []string `json:"Slaves"`
+	Slaves     []string `json:"Devices"`
 	// This map will contain extended info about bcache device, eg. stats, tunables etc
 	Parameters map[string]interface{}
 }
@@ -99,15 +103,15 @@ func readVal(path string) (val string) {
 	return
 }
 
-// return current value from sysfs for a bcache parameter
+// return current value for a bcache parameter
 func (b *Bcache_bdev) Val(name string) (val string) {
 	path := SYSFS_BLOCK_ROOT + `/` + b.ShortName + `/bcache/`
 	// todo put all tunables in single array with full path
-	for _, p := range CACHE_TUNABLES {
-		if name == p {
-			path = path + `cache/`
-		}
-	}
+	//for _, p := range CACHE_TUNABLES {
+	//	if name == p {
+	//		path = path + `cache/`
+	//	}
+	//}
 	path = path + name
 	rawval_s := readVal(path)
 	if strings.Contains(rawval_s, `[`) {
@@ -300,7 +304,7 @@ func (b *BcacheDevs) IsBDevice(dev string) (ret bool, ret2 Bcache_bdev) {
 func (b *BcacheDevs) IsCDevice(dev string) (ret bool, ret2 Bcache_cdev) {
 	ret = false
 	for _, cdev := range b.Cdevs {
-		if cdev.Dev == dev || cdev.UUID == dev{
+		if cdev.Dev == dev || cdev.UUID == dev {
 			ret = true
 			ret2 = cdev
 		}
@@ -549,16 +553,15 @@ func CheckSysfsFor(device string) bool {
 }
 
 // Check sysfs that bcache kernel module is loaded
-func BcacheLoaded() bool {
+func BcacheModuleLoaded() bool {
 	if _, err := os.Stat(SYSFS_BCACHE_ROOT); os.IsNotExist(err) {
 		return false
 	}
 	return true
 }
 
-
 // Flush a single device
-func (b *Bcache_bdev) FlushCache() error{
+func (b *Bcache_bdev) FlushCache() error {
 	var err error
 	// First check if current mode is writeback
 	r := b.Val(`cache_mode`)
@@ -577,7 +580,7 @@ func (b *Bcache_bdev) FlushCache() error{
 	// To achieve flush, we set cachemode to writethrough until state is clean
 	err = b.ChangeTunable(`cache_mode`, `writethrough`)
 	if err != nil {
-		return errors.New("error setting writethrough for flush:"+ err.Error())
+		return errors.New("error setting writethrough for flush:" + err.Error())
 	}
 	tries := 0
 	for {

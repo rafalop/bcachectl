@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"os"
+	"strings"
 )
 
 var tuneCmd = &cobra.Command{
 	Use:   "tune [{bcacheN|all} {tunable:value}] | [from-file /some/config/file]",
 	Short: "Change tunable for a bcache device or tune devices from a config file",
-	Long:  "Tune a bcache device.  Using 'from-file /file/name' will read tunables from a config file and tune each specified device or 'all' devices. Allowed tunables are:\n" + bcache.ALLOWED_TUNABLES_DESCRIPTIONS,
+	Long:  "Tune a bcache device.  Using 'from-file /file/name' will read tunables from a config file and tune each specified device or 'all' devices. Allowed tunables are:\n" + bcache.TUNABLE_DESCRIPTIONS,
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		if IsAdmin {
@@ -34,7 +35,14 @@ var tuneCmd = &cobra.Command{
 	},
 }
 
-func tune(b *bcache.BcacheDevs, device string, tunable string){
+func printTunables() {
+	for _, j := range bcache.TUNABLES {
+		fmt.Printf("%s\n", bcache.BaseName(j))
+	}
+	return
+}
+
+func tune(b *bcache.BcacheDevs, device string, tunable string) {
 	var all bool = false
 	var y bcache.Bcache_bdev
 	var x bool
@@ -43,8 +51,8 @@ func tune(b *bcache.BcacheDevs, device string, tunable string){
 	var overallErr error
 	if device == "all" {
 		all = true
-	} 
-	if device == "" { 
+	}
+	if device == "" {
 		fmt.Println("I need a registered device to tune, eg.\n bcachectl tune bcache0 tunable_name:tunable_val\n\nor use \"all\" to apply the same tunable to all registered devices.")
 	} else if !all {
 		// Tune single
@@ -54,9 +62,13 @@ func tune(b *bcache.BcacheDevs, device string, tunable string){
 			err = y.Tune(tunable)
 			if err != nil {
 				fmt.Println(err)
+				if strings.Contains(err.Error(), "allowed") {
+					fmt.Println("\nAllowed tunables: ")
+					printTunables()
+				}
 				os.Exit(1)
 			} else {
-				fmt.Printf("device %s was tuned successfully (%s)\n", device, tunable)
+				fmt.Printf("%s was tuned successfully (%s)\n", device, tunable)
 			}
 		}
 	} else {
@@ -64,10 +76,10 @@ func tune(b *bcache.BcacheDevs, device string, tunable string){
 		for _, dev := range b.Bdevs {
 			err = dev.Tune(tunable)
 			if err != nil {
-				fmt.Printf("could not tune %s: %s\n", dev.ShortName, err)
+				fmt.Printf("%s could not be tuned (%s): %s\n", dev.ShortName, tunable, err)
 				overallErr = err
 			} else {
-				fmt.Printf("device %s was tuned successfully (%s)\n", dev.ShortName, tunable)
+				fmt.Printf("%s was tuned successfully (%s)\n", dev.ShortName, tunable)
 			}
 		}
 	}

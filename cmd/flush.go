@@ -1,9 +1,9 @@
 package cmd
 
 import (
+	"bcachectl/pkg/bcache"
 	"fmt"
 	"github.com/spf13/cobra"
-	"bcachectl/pkg/bcache"
 	//"errors"
 	"os"
 	//"time"
@@ -32,7 +32,7 @@ var flushCmd = &cobra.Command{
 	},
 }
 
-func Flush(b *bcache.BcacheDevs, device string, all bool){
+func Flush(b *bcache.BcacheDevs, device string, all bool) {
 	var x bool
 	var y bcache.Bcache_bdev
 	var err error

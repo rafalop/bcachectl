@@ -17,7 +17,7 @@ func CheckAdmin(user *user.User) bool {
 
 // Check that bcache is loaded and ready for use
 func CheckSysFS() {
-	if ! bcache.BcacheLoaded() {
+	if !bcache.BcacheModuleLoaded() {
 		fmt.Println("Bcache is not in sysfs yet (" + bcache.SYSFS_BCACHE_ROOT + "), I can't do anything!")
 		fmt.Printf("Check that the bcache kernel module is loaded:\n\nlsmod|grep bcache\nmodprobe bcache\n\n")
 		os.Exit(1)

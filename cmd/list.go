@@ -53,7 +53,6 @@ func listDevs(b *bcache.BcacheDevs, format string, extra string) {
 }
 
 func printTable(b *bcache.BcacheDevs, extra_vals []string) {
-	//fmt.Println("bcache devices:")
 	if len(b.Bdevs) > 0 {
 		columns := []string{"BcacheDev", "BackingDev", "CacheDev", "cache_mode", "state"}
 		for _, val := range extra_vals {
