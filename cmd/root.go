@@ -38,17 +38,17 @@ var OutConfigFile string
 
 var rootCmd = &cobra.Command{
 	Use:   "bcachectl",
-	Short: "A command line tool for simplified administration of bcache devices",
+	Short: "Simplified administration of bcache devices",
 }
 
 func Init() {
 	U, _ = user.Current()
 	IsAdmin = CheckAdmin(U)
-	rootCmd.AddCommand(addCmd)
-	addCmd.Flags().BoolVarP(&Wipe, "wipe-super", "", false, "force deletion of existing filesystem superblock")
-	addCmd.Flags().StringVarP(&NewBDev, "backing-device", "B", "", "Backing dev to create, if specified with -C, will auto attach the cache device")
-	addCmd.Flags().StringVarP(&NewCDev, "cache-device", "C", "", "Cache dev to create, if specified with -B, will auto attach the cache device")
-	addCmd.Flags().BoolVarP(&WriteBack, "writeback", "", false, "Use writeback caching (when auto attach specifying -B and -C)")
+	rootCmd.AddCommand(formatCmd)
+	formatCmd.Flags().BoolVarP(&Wipe, "wipe-super", "", false, "force deletion of existing filesystem superblock")
+	formatCmd.Flags().StringVarP(&NewBDev, "backing-device", "B", "", "Backing dev to create, if specified with -C, will auto attach the cache device")
+	formatCmd.Flags().StringVarP(&NewCDev, "cache-device", "C", "", "Cache dev to create, if specified with -B, will auto attach the cache device")
+	formatCmd.Flags().BoolVarP(&WriteBack, "writeback", "", false, "Use writeback caching (when auto attach specifying -B and -C)")
 	rootCmd.AddCommand(listCmd)
 	listCmd.Flags().StringVarP(&Format, "format", "f", "table", "Output format [table|json|short]")
 	listCmd.Flags().StringVarP(&Extra, "extra-vals", "e", "", "Extra settings to print (comma delim)")

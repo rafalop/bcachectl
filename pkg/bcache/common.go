@@ -138,6 +138,8 @@ func getSysDevFromID(dev_id string) (path string) {
 
 // Find backing and cache devs for a bcache set
 func (b *Bcache_bdev) FindBackingAndCacheDevs() {
+	// Note, newer kernels/bcache verisons seem to have 'backing_dev_name' entry in sysfs
+	// which can be read to obtain the backing dev, eaiser than this process for finding it
 	search_path := SYSFS_BLOCK_ROOT + b.ShortName + `/slaves/`
 	for _, slave := range b.Slaves {
 		if _, registerCheck := os.Stat(search_path + slave + `/bcache`); os.IsNotExist(registerCheck) {

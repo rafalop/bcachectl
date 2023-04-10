@@ -7,10 +7,10 @@ import (
 	"os"
 )
 
-var addCmd = &cobra.Command{
-	Use:   "add -[B|C] {device1} -[B|C] {device2} ... -[B|C] {deviceN}",
-	Short: "add (format) bcache backing and/or cache device(s)",
-	Long:  "Add/Format/Create one or more bcache devices, potentially auto attaching a cache device to a backing device if both are specified together (-B) and (-C). This is a wrapper for `make-bcache` and will use the same arguments, eg. -B {backing dev} -C {cache dev}",
+var formatCmd = &cobra.Command{
+	Use:   "format -[B|C] {device1} -[B|C] {device2} ... -[B|C] {deviceN}",
+	Short: "format a bcache backing and/or cache device(s)",
+	Long:  "Add/Format/Create a bcache device potentially auto attaching a cache device to a backing device if both are specified together (-B) and (-C). This is a wrapper for `make-bcache` and will use the same arguments, eg. -B {backing dev} -C {cache dev}",
 	Run: func(cmd *cobra.Command, args []string) {
 		if IsAdmin && (NewBDev != "" || NewCDev != "") {
 			all, err := bcache.AllDevs()

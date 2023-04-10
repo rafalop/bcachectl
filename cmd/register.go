@@ -9,7 +9,7 @@ import (
 
 var registerCmd = &cobra.Command{
 	Use:   "register {bcacheX} {bcacheY} ... {deviceN}",
-	Short: "register formatted bcache device(s)",
+	Short: "register an already formatted bcache device(s)",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if IsAdmin {
