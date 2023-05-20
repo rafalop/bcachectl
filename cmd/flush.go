@@ -2,71 +2,69 @@ package cmd
 
 import (
 	"bcachectl/pkg/bcache"
+	"errors"
 	"fmt"
 	"github.com/spf13/cobra"
-	//"errors"
 	"os"
-	//"time"
 )
 
 var flushCmd = &cobra.Command{
-	Use:   "flush {bcacheN}",
+	Use:   "flush {bcacheN}|all",
 	Short: "Flush devices dirty data from cache",
 	Long:  "Flush the dirty data for one or all bcache devices. Only used when cache is in writeback mode.",
-	Args:  cobra.MinimumNArgs(0),
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		var err error
 		if IsAdmin {
-			all, err := bcache.AllDevs()
+			err = Flush(args[0])
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("Error flushing: " + err.Error())
 				os.Exit(1)
-			}
-			if ApplyToAll {
-				Flush(all, "", true)
-			} else if len(args) == 0 {
-				Flush(all, "", false)
-			} else {
-				Flush(all, args[0], false)
 			}
 		}
 	},
 }
 
-func Flush(b *bcache.BcacheDevs, device string, all bool) {
+func Flush(device string) (returnErr error) {
 	var x bool
 	var y bcache.Bcache_bdev
-	var err error
-	var successMsg = fmt.Sprintf("device %s flushed successfully\n", device)
-	if device == "" && !all {
-		fmt.Println("I need a device to flush, eg.\n bcachectl flush bcache0\n\nor use -a to flush all.")
-		//return errors.New("no device supplied")
+	b, err := bcache.AllDevs()
+	if err != nil {
+		return errors.New("Error getting bcache devices:" + err.Error())
+	}
+	if device == "" {
+		return errors.New("no device supplied")
 	} else if x, y = b.IsBDevice(device); device != "" && !x {
-		fmt.Println(device, "does not appear to be a valid bcache device (expecting valid bcacheXY)\n")
-		//return errors.New(device + " is not a valid bcache device")
-	} else if !all {
+		return errors.New(device + " is not a valid bcache device")
+	} else if device != "all" {
 		// Flush single
-		y.FlushCache()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+		e1, e2 := y.FlushCache()
+		if e1 != nil {
+			returnErr = errors.New("could not flush " + y.ShortName + ": " + e1.Error())
+		} else if e2 != nil {
+			returnErr = errors.New("could reset writeback settings" + y.ShortName + ": " + e2.Error())
+		} else if e1 != nil && e2 != nil {
+			returnErr = errors.New("errors during flush: " + y.ShortName + ": " + e1.Error() + ", " + e2.Error())
 		} else {
-			fmt.Printf(successMsg)
+			fmt.Println("cache for " + y.ShortName + " was flushed successfully.")
 		}
-	} else {
+	} else if device == "all" {
 		// Flush all
-		c := make(chan error, len(b.Bdevs))
+		c := make(chan string, len(b.Bdevs))
 		for _, dev := range b.Bdevs {
 			go func(d bcache.Bcache_bdev) {
-				c <- d.FlushCache()
+				var e1, e2 error
+				e1, e2 = d.FlushCache()
+				if e1 != nil || e2 != nil {
+					c <- "error while flushing " + d.ShortName + ": err1:" + e1.Error() + "err2:" + e2.Error() + "\n"
+					returnErr = errors.New("couldn't flush one or more devices.")
+				} else {
+					c <- "cache for " + d.ShortName + " was flushed successfully."
+				}
 			}(dev)
 		}
 		for range b.Bdevs {
-			err = <-c
-			if err != nil {
-				fmt.Println(err)
-			} else {
-				fmt.Printf(successMsg)
-			}
+			fmt.Printf(<-c)
 		}
 	}
 	return

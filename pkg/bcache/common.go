@@ -41,6 +41,7 @@ var TUNABLES = []string{
 	`cache/congested_read_threshold_us`,
 	`readahead_cache_policy`,
 	`sequential_cutoff`,
+	`writeback_delay`,
 }
 
 var PARAMETERS = append(STATS, TUNABLES...)
@@ -562,51 +563,55 @@ func BcacheModuleLoaded() bool {
 	return true
 }
 
-// Flush a single device
-func (b *Bcache_bdev) FlushCache() error {
-	var err error
+// Flush a single device. The only way to do this is to set the cache mode to adjust
+// the cache_mode and the writeback_delay. Return two errors, first is whether we actually
+// were able to complete the flush, second is setting mode back to writeback
+func (b *Bcache_bdev) FlushCache() (error, error) {
+	var err, err2 error
 	// First check if current mode is writeback
 	r := b.Val(`cache_mode`)
 	if r != "writeback" {
 		// nothing to flush
-		return nil
+		return nil, nil
 	}
 
 	// Set writeback_delay to something short
 	write_delay := b.Val(`writeback_delay`)
 	err = b.ChangeTunable(`writeback_delay`, `1`)
 	if err != nil {
-		return errors.New("error setting writeback_delay:" + err.Error())
+		return errors.New("error setting writeback_delay: " + err.Error()), nil
 	}
 
 	// To achieve flush, we set cachemode to writethrough until state is clean
 	err = b.ChangeTunable(`cache_mode`, `writethrough`)
 	if err != nil {
-		return errors.New("error setting writethrough for flush:" + err.Error())
+		return errors.New("error setting writethrough for flush: " + err.Error()), nil
 	}
 	tries := 0
 	for {
 		if tries == 30 {
-			return errors.New("flush did not complete after 30 seconds")
-			//break
+			err = errors.New("could not complete flush within 30 seconds")
+			break
 		}
 		state := b.Val(`state`)
 		if state == `clean` {
+			err = nil
 			break
 		} else {
 			time.Sleep(1 * time.Second)
 		}
 		tries += 1
 	}
-	return nil
-	err = b.ChangeTunable(`cache_mode`, `writeback`)
-	if err != nil {
-		return errors.New("unable to set mode back to writeback after flush:" + err.Error())
+
+	// If we called this function and got this far, cache mode must have been writeback, we change it back
+	err2 = b.ChangeTunable(`cache_mode`, `writeback`)
+	if err2 != nil {
+		err2 = errors.New("unable to set mode back to writeback: " + err2.Error())
 	}
 	// Set original writeback delay
-	err = b.ChangeTunable(`writeback_delay`, write_delay)
-	if err != nil {
-		return errors.New("unable to set writeback_delay back to original value after flush")
+	err2 = b.ChangeTunable(`writeback_delay`, write_delay)
+	if err2 != nil {
+		err2 = errors.New("unable to set writeback_delay back to original value: " + err2.Error())
 	}
-	return nil
+	return err, err2
 }
