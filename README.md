@@ -5,7 +5,7 @@ A tool for administering bcache devices.
 The minimum you need to build is golang installed (eg. 1.17+). Note the lazy script below will download and install golang for you. Optionally, manually install golang and `make` if you want to build manually or using make.
 
 ## Install requirements
-You will need to install `bcache-tools`, a kernel that supports bcache and the bcache kernel module loaded.
+You will need to install `bcache-tools`, and a kernel that supports bcache and the bcache kernel module loaded.
 
 ## Building
 Using `make` (requires go already installed):
