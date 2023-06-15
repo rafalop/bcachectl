@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"bcachectl/pkg/bcache"
 	"errors"
+	"github.com/rafalop/bcachectl/pkg/bcache"
 	"fmt"
 	"github.com/spf13/cobra"
 	"os"

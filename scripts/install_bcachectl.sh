@@ -1,7 +1,8 @@
 #!/bin/bash
 
-AARCH64_GO_URL='https://go.dev/dl/go1.17.7.linux-arm64.tar.gz'
-X86_GO_URL='https://go.dev/dl/go1.17.7.linux-amd64.tar.gz'
+GO_VERSION='1.20.1'
+AARCH64_GO_URL="https://go.dev/dl/go${GO_VERSION}.linux-arm64.tar.gz"
+X86_GO_URL="https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"
 INSTALL_LOC=/usr/local/bin/bcachectl
 TMPDIR=/var/tmp
 REINSTALL=0
