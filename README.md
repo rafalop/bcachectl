@@ -1,8 +1,11 @@
 # bcachectl
-This tool is written to be interoperable with existing bcache tools (eg. make-bcache), in fact it makes use of the sysfs and paths that are created by bcache tools when you format/register devices to make it much simpler to view, configure and modify bcache setups.
+A tool for administering bcache devices.
 
-## Requirements
-You should have a kernel that supports bcache (eg. Ubuntu 18.04+), and `bcache-tools` package installed, and go installed (https://golang.org/doc/install).
+## Build requirements
+The minimum you need to build is golang installed (eg. 1.17+). Note the lazy script below will download and install golang for you. Optionally, manually install golang and `make` if you want to build manually or using make.
+
+## Install requirements
+You will need to install `bcache-tools`, and a kernel that supports bcache and the bcache kernel module loaded.
 
 ## Building
 Using `make` (requires go already installed):
@@ -27,11 +30,11 @@ curl https://raw.githubusercontent.com/rafalop/bcachectl/main/scripts/install_bc
 ## Usage examples
 ### Format and register a bcache backing device
 ```
-bcachectl add -B /dev/vdb
+bcachectl format -B /dev/vdb
 ```
 ### Format and register a bcache cache device
 ```
-bcachectl add -C /dev/vdc
+bcachectl format -C /dev/vdc
 ```
 ### Format and register a bcache device together with a cache device (auto attaches the cache)
 ```
@@ -40,7 +43,7 @@ bcachectl add -B /dev/vdb -C /dev/vdc
 ### List all bcache devices examples
 ```
 bcachectl list
-bcachectl list -e sequential_cutoff
+bcachectl list -e sequential_cutoff,dirty_data
 bcachectl list -f json
 bcachectl list -f short
 ```

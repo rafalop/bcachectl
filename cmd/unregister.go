@@ -1,40 +1,40 @@
 package cmd
 
 import (
+	"bcachectl/pkg/bcache"
 	"fmt"
 	"github.com/spf13/cobra"
-	"io/ioutil"
+	"os"
 )
 
-//var U *user.User
 var unregisterCmd = &cobra.Command{
 	Use:   "unregister {bcacheX} {bcacheY} ... {deviceN}",
 	Short: "unregister formatted bcache device(s)",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if IsAdmin {
-			all := allDevs()
-			all.RunUnregister(args[0:])
+			all, err := bcache.AllDevs()
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			var overallErr error
+			for _, dev := range args[0:] {
+				err := all.Unregister(dev)
+				if err != nil {
+					fmt.Println(err)
+					overallErr = err
+				} else {
+					if x, y := all.IsBDevice(dev); x {
+						fmt.Println(y.BackingDev, "("+y.ShortName+") was unregistered and but is still formatted.")
+					} else if x, z := all.IsCDevice(dev); x {
+						fmt.Println(z.Dev, "(cache dev with uuid "+z.UUID+") was unregistered but is still formatted.")
+					}
+				}
+			}
+			if overallErr != nil {
+				os.Exit(1)
+			}
 		}
 	},
-}
-
-func (b *bcache_devs) RunUnregister(devices []string) {
-	var write_path string
-	for _, device := range devices {
-		if x, bdev := b.IsBDevice(device); x {
-			write_path = SYSFS_BLOCK_ROOT + bdev.ShortName + `/bcache/stop`
-			ioutil.WriteFile(write_path, []byte{1}, 0)
-			fmt.Println(device, "(backing device) was unregistered, but is still formatted.")
-			return
-		}
-		if x, cdev := b.IsCDevice(device); x {
-			write_path = SYSFS_BCACHE_ROOT + cdev.UUID + `/stop`
-			ioutil.WriteFile(write_path, []byte{1}, 0)
-			fmt.Println(device, "(cache device) was unregistered, but is still formatted.")
-			return
-		}
-		fmt.Println(device + " does not appear to be a registered bcache device.")
-	}
-	return
 }

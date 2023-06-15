@@ -1,9 +1,10 @@
 package cmd
 
 import (
+	"bcachectl/pkg/bcache"
 	"fmt"
 	"github.com/spf13/cobra"
-	"io/ioutil"
+	"os"
 )
 
 var attachCmd = &cobra.Command{
@@ -12,29 +13,26 @@ var attachCmd = &cobra.Command{
 	Long:  "Attaches a device that has already been formatted as a cache device (exists in sysfs and has uuid) to an already formatted backing device.",
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		all := allDevs()
-		all.RunAttach(args[0], args[1])
+		all, err := bcache.AllDevs()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		x, b := all.IsBDevice(args[1])
+		if !x {
+			fmt.Println(args[1] + " is not a bcache device.")
+			os.Exit(1)
+		}
+		if b.CacheDev != bcache.NONE_ATTACHED {
+			fmt.Println(args[1] + " (" + b.ShortName + ") already has cache attached (" + b.CacheDev + ")")
+		} else {
+			err := all.Attach(args[0], args[1])
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			} else {
+				fmt.Println("Cache device", args[0], "was attached as cache for", b.BackingDev+" ("+b.ShortName+")")
+			}
+		}
 	},
-}
-
-func (b *bcache_devs) RunAttach(cdev string, bdev string) {
-	var x bool
-	var y bcache_bdev
-	var z bcache_cdev
-	if x, y = b.IsBDevice(bdev); !x {
-		fmt.Println(bdev, "does not appear to be a formatted and registered BACKING device.")
-		return
-	}
-	if x, z = b.IsCDevice(cdev); !x {
-		fmt.Println(cdev, "does not appear to be a formatted and registered CACHE device.")
-		return
-	}
-	write_path := SYSFS_BLOCK_ROOT + y.ShortName + `/bcache/attach`
-	ioutil.WriteFile(write_path, []byte(z.UUID), 0)
-	y.FindCUUID()
-	if y.CUUID != z.UUID {
-		fmt.Println("Cache device could not be attached. Is there already a cache set associated with the device?\n")
-		return
-	}
-	fmt.Println("Cache device", cdev, "was attached as cache for", bdev)
 }
