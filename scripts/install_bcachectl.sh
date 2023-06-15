@@ -56,6 +56,10 @@ if [[ ! -f go.mod ]]; then $GOBIN mod init bcachectl; fi
 $GOBIN mod tidy
 $GOBIN build bcachectl
 
+# Install deps (debian only for now)
+echo "Installing dependencies..."
+apt install bcache-tools
+
 # Install bcachectl
 echo
 if [[ -f bcachectl ]]
