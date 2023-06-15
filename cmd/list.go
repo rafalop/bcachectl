@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"github.com/rafalop/bcachectl/pkg/bcache"
 	"encoding/json"
 	"fmt"
+	"github.com/rafalop/bcachectl/pkg/bcache"
 	"github.com/spf13/cobra"
 	"os"
 	"strings"

@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"github.com/rafalop/bcachectl/pkg/bcache"
 	"fmt"
+	"github.com/rafalop/bcachectl/pkg/bcache"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 	"os"

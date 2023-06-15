@@ -163,11 +163,10 @@ func (b *Bcache_bdev) FindBackingAndCacheDevs() {
 	}
 }
 
-func GetSuperBlock(dev string) string {
+func GetSuperBlock(dev string) (string, error) {
 	cmd := `/sbin/bcache-super-show `
 	cmd = cmd + dev
-	out, _ := RunSystemCommand(cmd)
-	return out
+	return RunSystemCommand(cmd)
 }
 
 // Get cache set uuid
@@ -177,7 +176,7 @@ func (b *Bcache_bdev) FindCUUID() {
 	b.CUUID = cset_path_a[len(cset_path_a)-1]
 	//If it's empty, we try to get from superblock instead
 	if b.CUUID == "" {
-		super := GetSuperBlock(b.BackingDev)
+		super, _ := GetSuperBlock(b.BackingDev)
 		re := regexp.MustCompile(`cset\.uuid[\ |\t]*([a-zA-Z0-9\-]*)`)
 		found := re.FindStringSubmatch(super)
 		// None found

@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"bcachectl/pkg/bcache"
 	"fmt"
+	"github.com/rafalop/bcachectl/pkg/bcache"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 var superCmd = &cobra.Command{
@@ -12,7 +13,11 @@ var superCmd = &cobra.Command{
 	Long:  "Print the superblock, a wrapper for `bcache-super-show`. The device provided should be a system device, not a bcache (bcacheX) device.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		//allDevs()
-		fmt.Printf(bcache.GetSuperBlock(args[0]))
+		out, err := bcache.GetSuperBlock(args[0])
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Println(out)
 	},
 }
