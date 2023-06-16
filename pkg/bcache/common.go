@@ -330,7 +330,7 @@ func Wipe(device string) (out string, err error) {
 }
 
 func (b *BcacheDevs) Create(newbdev string, newcdev string, wipe bool, writeback bool) (returnErr error) {
-	bcache_cmd := `/usr/sbin/make-bcache`
+	bcache_cmd := `make-bcache`
 	var out string
 	if newcdev != "" {
 		bcache_cmd = bcache_cmd + ` -C ` + newcdev
