@@ -325,7 +325,7 @@ func (b *BcacheDevs) IsBCDevice(dev string) (ret bool) {
 }
 
 func Wipe(device string) (out string, err error) {
-	out, err = RunSystemCommand(`/sbin/wipefs -a ` + device)
+	out, err = RunSystemCommand(`wipefs -a ` + device)
 	return
 }
 
