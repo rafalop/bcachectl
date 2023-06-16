@@ -18,7 +18,7 @@ var formatCmd = &cobra.Command{
 				fmt.Println(err)
 				os.Exit(1)
 			}
-			err = all.Create(NewBDev, NewCDev, Wipe, WriteBack)
+			err = all.Format(NewBDev, NewCDev, Wipe, WriteBack)
 			if err == nil {
 				fmt.Println("Completed formatting device(s):", NewBDev, NewCDev)
 			} else {

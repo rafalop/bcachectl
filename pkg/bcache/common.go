@@ -329,26 +329,34 @@ func Wipe(device string) (out string, err error) {
 	return
 }
 
-func (b *BcacheDevs) Create(newbdev string, newcdev string, wipe bool, writeback bool) (returnErr error) {
+func (b *BcacheDevs) Format(newbdev string, newcdev string, wipe bool, writeback bool) (returnErr error) {
 	bcache_cmd := `make-bcache`
 	var out string
+	isBdev, _ := b.IsBDevice(newbdev)
+	isCdev, _ := b.IsCDevice(newcdev)
+	if isBdev {
+		return errors.New("Devices must be unregistered before formatting - " + newbdev + " is a registered bcache device")
+	}
+	if isCdev {
+		return errors.New("Devices must be unregistered before formatting - " + newcdev + " is a registered cache device")
+	}
 	if newcdev != "" {
 		bcache_cmd = bcache_cmd + ` -C ` + newcdev
 		if wipe {
-			b.Stop(newcdev)
-			_, returnErr = Wipe(newcdev)
+			out, returnErr = Wipe(newcdev)
 			if returnErr != nil {
-				return
+				// wipefs doesn't seem to print to stderr on error?
+				return errors.New(out + returnErr.Error())
 			}
 		}
 	}
 	if newbdev != "" {
 		bcache_cmd = bcache_cmd + ` -B ` + newbdev
 		if wipe {
-			b.Stop(newbdev)
-			_, returnErr = Wipe(newbdev)
+			out, returnErr = Wipe(newbdev)
 			if returnErr != nil {
-				return
+				// wipefs doesn't seem to print to stderr on error?
+				return errors.New(out + returnErr.Error())
 			}
 		}
 	}
@@ -379,37 +387,32 @@ func (b *BcacheDevs) Create(newbdev string, newcdev string, wipe bool, writeback
 }
 
 // Try to register a bcache device, do nothing if already registered
-func Register(device string) (returnErr error) {
+func Register(device string) error {
 	var write_path string
 	write_path = SYSFS_BCACHE_ROOT + `register`
-	all, returnErr := AllDevs()
-	if returnErr != nil {
-		return
+
+	// try registering for 10s
+	for i := 0; i < 10; i++ {
+		all, returnErr := AllDevs()
+		if returnErr != nil {
+			return returnErr
+		}
+		if x, _ := all.IsBDevice(device); x {
+			return nil
+		}
+		if x, _ := all.IsCDevice(device); x {
+			return nil
+		}
+		if CheckSysfsFor(device) {
+			return nil
+		}
+		returnErr = ioutil.WriteFile(write_path, []byte(device), 0)
+		if returnErr != nil {
+			return returnErr
+		}
+		time.Sleep(time.Second * 1)
 	}
-	//registered := false
-	if x, _ := all.IsBDevice(device); x {
-		return
-	}
-	if x, _ := all.IsCDevice(device); x {
-		return
-	}
-	if CheckSysfsFor(device) {
-		return
-	}
-	returnErr = ioutil.WriteFile(write_path, []byte(device), 0)
-	if returnErr != nil {
-		return
-	}
-	all, returnErr = AllDevs()
-	if returnErr != nil {
-		return
-	}
-	isBdev, _ := all.IsBDevice(device)
-	isCdev, _ := all.IsCDevice(device)
-	if !isBdev && !isCdev {
-		returnErr = errors.New("Couldn't register device. Is it a formatted bcache device?")
-	}
-	return
+	return errors.New("Couldn't register device. Is it a formatted bcache device?")
 }
 
 // Stop (unregister) a bcache device
@@ -445,11 +448,11 @@ func (b *BcacheDevs) Stop(device string) (returnErr error) {
 	}
 	// wait up to 5 seconds for device to disappear, else exit without guarantees
 	sysfs_path = sysfs_path + `/bcache`
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		if _, err := os.Stat(sysfs_path); os.IsNotExist(err) {
 			return
 		}
-		time.Sleep(time.Duration(1) * time.Second)
+		time.Sleep(time.Second * 1)
 	}
 	return errors.New("Device was stopped but it may still be in sysfs.")
 }

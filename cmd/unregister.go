@@ -26,7 +26,7 @@ var unregisterCmd = &cobra.Command{
 					overallErr = err
 				} else {
 					if x, y := all.IsBDevice(dev); x {
-						fmt.Println(y.BackingDev, "("+y.ShortName+") was unregistered and but is still formatted.")
+						fmt.Println(y.BackingDev, "("+y.ShortName+") was unregistered but is still formatted.")
 					} else if x, z := all.IsCDevice(dev); x {
 						fmt.Println(z.Dev, "(cache dev with uuid "+z.UUID+") was unregistered but is still formatted.")
 					}
