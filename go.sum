@@ -1,10 +1,6 @@
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
 github.com/inconshreveable/mousetrap v1.0.1 h1:U3uMjPSQEBMNp1lFxmllqCPM6P5u/Xq7Pgzkat/bFNc=
 github.com/inconshreveable/mousetrap v1.0.1/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
-github.com/rafalop/bcachectl v0.0.0-20220713074226-5ef8e2d50760 h1:pUZfCP0UNLQ6HW4Ne27zrt02UMDdXqz5wJNP/0uLA+8=
-github.com/rafalop/bcachectl v0.0.0-20220713074226-5ef8e2d50760/go.mod h1:s5SPrxt6HO/+hEyqVeXaJ+k4nIokPmHtQ7u39Fl3Au8=
-github.com/rafalop/bcachectl v0.0.0-20230615124106-e798ee435f22 h1:b6FhPec8Lrk+zR75jTsY1WzudLBLfNPLzMTncRKhzeo=
-github.com/rafalop/bcachectl v0.0.0-20230615124106-e798ee435f22/go.mod h1:s5SPrxt6HO/+hEyqVeXaJ+k4nIokPmHtQ7u39Fl3Au8=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/spf13/cobra v1.6.1 h1:o94oiPyS4KD1mPy2fmcYYHHfCxLqYjJOhGsCHFZtEzA=
 github.com/spf13/cobra v1.6.1/go.mod h1:IOw/AERYS7UzyrGinqmz6HLUo219MORXGxhbaJUqzrY=

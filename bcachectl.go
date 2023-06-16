@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bcachectl/cmd"
+	"github.com/rafalop/bcachectl/cmd"
 )
 
 func main() {
