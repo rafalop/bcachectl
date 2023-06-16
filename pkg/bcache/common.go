@@ -164,7 +164,7 @@ func (b *Bcache_bdev) FindBackingAndCacheDevs() {
 }
 
 func GetSuperBlock(dev string) (string, error) {
-	cmd := `/sbin/bcache-super-show `
+	cmd := `bcache-super-show `
 	cmd = cmd + dev
 	return RunSystemCommand(cmd)
 }
