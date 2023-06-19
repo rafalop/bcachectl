@@ -1,11 +1,8 @@
 default:
-	go mod init bcachectl
 	go mod tidy
 	go build bcachectl.go
 clean:
 	rm -f bcachectl
-	rm -f go.mod
-	rm -f go.sum
 install: bcachectl scripts/ceph-bcache.sh
 	install -d ${DESTDIR}/usr/bin
 	install bcachectl ${DESTDIR}/usr/bin/
