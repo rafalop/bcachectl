@@ -30,13 +30,14 @@ func NewDriveConfig() map[string]DriveConfig {
 }
 
 func Parse(d *map[string]DriveConfig, configFile string) (err error) {
-	f, err := os.Open(configFile)
+	f, err := os.ReadFile(configFile)
 	if err != nil {
 		return
 	}
-	defer f.Close()
-	decoder := yaml.NewDecoder(f)
-	err = decoder.Decode(d)
+	err = yaml.Unmarshal(f, d)
+	if err != nil {
+		return
+	}
 	return
 }
 

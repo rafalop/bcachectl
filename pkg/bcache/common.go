@@ -30,7 +30,6 @@ var STATS = []string{
 	`stats_total/cache_bypass_hits`,
 	`stats_total/cache_bypass_misses`,
 	`cache/congested`,
-	`writeback_percent`,
 	`dirty_data`,
 }
 
@@ -42,6 +41,7 @@ var TUNABLES = []string{
 	`readahead_cache_policy`,
 	`sequential_cutoff`,
 	`writeback_delay`,
+	`writeback_percent`,
 }
 
 var PARAMETERS = append(STATS, TUNABLES...)
