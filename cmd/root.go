@@ -76,3 +76,8 @@ func Execute() {
 	CheckSysFS()
 	rootCmd.Execute()
 }
+
+// For manpage generation (see bcachectl_man.go)
+func GetRootCmd() *cobra.Command {
+	return rootCmd
+}
