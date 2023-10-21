@@ -1,4 +1,5 @@
 default:
+	go mod init bcachectl
 	go mod tidy
 	go build bcachectl.go
 clean:
