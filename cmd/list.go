@@ -59,7 +59,7 @@ func printTable(b *bcache.BcacheDevs, extra_vals []string) {
 			columns = append(columns, val)
 		}
 		for _, j := range columns {
-			printColumn(j)
+			printColumn("["+j+"]")
 		}
 		fmt.Printf("\n")
 		for _, bdev := range b.Bdevs {
