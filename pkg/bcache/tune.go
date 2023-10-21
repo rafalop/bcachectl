@@ -175,7 +175,10 @@ func (b *BcacheDevs) GetTunables() map[string]DriveConfig {
 	for _, bdev := range b.Bdevs {
 		output[bdev.BUUID] = make(DriveConfig)
 		for _, tunable := range TUNABLES {
-			output[bdev.BUUID][BaseName(tunable)] = bdev.Val(tunable)
+			value := bdev.Val(tunable)
+			if value != "" {
+				output[bdev.BUUID][BaseName(tunable)] = value
+			}
 		}
 	}
 	return output
