@@ -1,0 +1,62 @@
+name: bcachectl
+base: core22
+version: '1.0'
+summary: cli for managing bcache devices
+description: |
+  Command for creating, configuring and monitoring bcache devices.
+
+grade: devel
+confinement: classic
+
+apps:
+  bcachectl:
+    command: bin/bcachectl
+  make-bcache:
+    command: usr/sbin/make-bcache
+  bcache-super-show:
+    command: usr/sbin/bcache-super-show
+  lsblk:
+    command: bin/lsblk
+  register-devices:
+    command: bin/register-all
+    daemon: oneshot
+    install-mode: enable
+  # use /etc/bcachectl.conf to make it compatible with non snap install
+  # note snap install will fail if the /etc/bcachectl.conf file has invalid content
+  tune:
+    command: bin/bcachectl tune from-file /etc/bcachectl.conf
+    daemon: oneshot
+    install-mode: enable
+    after: [register-devices]
+
+parts:
+  bcachectl:
+    plugin: go
+    source: https://github.com/rafalop/bcachectl.git
+    source-branch: main
+    #source: ./
+    #source-type: local
+    build-snaps:
+      - go
+    stage-packages:
+      - bcache-tools
+      - util-linux
+    override-build: |
+      ## Useful for local build iteration
+      #if [[ -f go.mod ]]; then rm -f go.mod; fi
+      #if [[ -f go.sum ]]; then rm -f go.sum; fi
+      #if [[ -f bcachectl.man.8.gz ]]; then rm -f bcachectl.man.8.gz; fi
+      # overwrite make-bcache and bcache-super-show binaries with snap ones
+      sed -i 's,\/usr\/sbin\/make\-bcache,\/snap\/bin\/bcachectl\.make\-bcache,g' pkg/bcache/common.go 
+      sed -i 's,\/usr\/sbin\/bcache\-super\-show,\/snap\/bin\/bcachectl\.bcache\-super\-show,g' pkg/bcache/common.go 
+      go mod init bcachectl
+      go mod tidy
+      go build -o bcachectl bcachectl.go
+      install -d $SNAPCRAFT_PART_INSTALL/bin
+      install bcachectl $SNAPCRAFT_PART_INSTALL/bin/
+      install scripts/register_all.sh $SNAPCRAFT_PART_INSTALL/bin/register-all
+      go build -o bcachectl_man bcachectl_man.go
+      ./bcachectl_man
+      gzip bcachectl.man.8
+      cp bcachectl.man.8.gz $SNAPCRAFT_PART_INSTALL/
+      cp systemd/* $SNAPCRAFT_PART_INSTALL/

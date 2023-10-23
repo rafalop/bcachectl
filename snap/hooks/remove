@@ -1,0 +1,13 @@
+#!/bin/bash
+
+## Only purge the conf it it's the default one
+if [[ `cmp $SNAP/bcachectl.conf /etc/bcachectl.conf` -eq 0 ]]; then
+    rm -f /etc/bcachectl.conf
+fi
+
+## Remove manpage
+rm -f /usr/share/man/man8/bcachectl.man.8.gz
+mandb
+
+## Remove modprobe, this file is not used by any apt packages including 'bcache-tools'
+rm /etc/modules-load.d/bcache.conf

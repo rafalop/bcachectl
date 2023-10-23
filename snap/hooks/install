@@ -1,0 +1,14 @@
+#!/bin/bash
+
+## Check for existing tunables file, use /etc/bcachectl.conf to make it compatible with non snap install
+if [[ ! -f /etc/bcachectl.conf ]]; then
+  cp $SNAP/bcachectl.conf /etc/bcachectl.conf
+fi
+
+## Install manpage
+cp $SNAP/bcachectl.man.8.gz /usr/share/man/man8/
+mandb
+
+## Set up kernel module on boot
+echo "bcache" > /etc/modules-load.d/bcache.conf
+systemctl restart systemd-modules-load
